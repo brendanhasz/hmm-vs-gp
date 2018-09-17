@@ -1,7 +1,7 @@
 data {
-    int<lower=1> N; //number of datapoints
-    real x[N];      //x values
-    vector[N] y;    //y values (one N-dimensional datapoint)
+    int<lower=1> N;                 //number of datapoints
+    real x[N];                      //x values
+    vector<lower=0, upper=1>[N] y;  //y values (one N-dimensional datapoint)
 }
 
 transformed data {
@@ -9,9 +9,9 @@ transformed data {
 }
 
 parameters {
-    real<lower=0> rho;
-    real<lower=0> alpha;
-    real<lower=0> sigma;
+    real<lower=0> rho;   //length scale
+    real<lower=0> alpha; //marginal/output/signal standard deviation
+    real<lower=0> sigma; //noise standard deviation
 }
 
 model {
@@ -26,10 +26,8 @@ model {
     sigma ~ normal(0, 1);
 
     // Likelihood
-    y ~ multi_normal_cholesky(mu, L_K);
+    target += multi_normal_cholesky_lpdf(logit(y) | mu, L_K);
 
-    // TODO: can just compute L_K (or the list of them for each trial) in the transformed data block, will make sampling way faster
-    // TODO: sigmoid transform output of the multi_normal_cholesky between 0 and 1 (also add bounds to y in data block)
     // TODO: handle multiple trials
     // TODO: multilevel model to handle multiple subjects
 }
