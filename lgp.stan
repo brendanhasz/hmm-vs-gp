@@ -21,8 +21,8 @@ model {
     matrix[N, N] L_K = cholesky_decompose(K);
 
     // Priors
-    rho ~ inv_gamma(2, 1);
-    alpha ~ normal(0, 1);
+    rho ~ inv_gamma(2, 0.5);
+    alpha ~ normal(0, 2);
     sigma ~ normal(0, 1);
 
     // Likelihood
