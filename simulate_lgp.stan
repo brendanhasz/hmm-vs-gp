@@ -18,7 +18,7 @@ parameters {}
 model {}
 
 generated quantities {
-    // What is this, C89?  STAAAAAAANNNN!!!
+    // Declare variables
     vector[N] uf;
     vector[N] uy;
     vector[N] f;

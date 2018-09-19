@@ -1,0 +1,173 @@
+---
+title: "Bayesian Modelling of Gaussian Processes and Hidden Markov Models with Stan"
+output: html_notebook
+---
+
+TODO: intro
+
+## Setup 
+
+Let's set up our computing environment:
+
+```{r}
+setwd("~/Code/hmm-vs-gp")
+
+# Packages
+library(rstan)
+library(ggplot2)
+library(bayesplot)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+seed = 723456
+
+# Colors
+c_light <- c("#DCBCBC")
+c_mid <- c("#B97C7C")
+c_dark <- c("#8F2727")
+color_scheme_set("red")
+```
+
+
+## Gaussian Processes
+
+TODO: intro/math to GPs, and the logit link function
+
+TODO: talk about stan file to generate data
+
+```{r}
+writeLines(readLines("simulate_lgp.stan"))
+```
+
+We can generate data from a Gaussian process using this Stan model.  Let's generate 100 samples in the range 0 to 5.
+
+```{r}
+# Data
+N = 100
+x = seq(0, 5, l=N)
+```
+
+We will also set the hyperparameters of the gaussian process.
+
+```{r}
+# Parameters
+rho = 0.5
+alpha = 2
+sigma = 0.3
+```
+
+Now we can run the Stan model, which will generate data from a Gaussian process with these parameters.
+
+```{r}
+# Simulate
+sim_params = list(N=N, x=x, rho=rho, alpha=alpha, sigma=sigma)
+sim_fit = stan(file='simulate_lgp.stan', data=sim_params, iter=1, 
+               chains=1, seed=seed, algorithm="Fixed_param")
+
+# Extract simulated output
+f = extract(sim_fit)$f[1,]
+y = extract(sim_fit)$y[1,]
+sim_data = data.frame(x=x, y=y, f=f)
+```
+
+Let's plot our generated Gaussian process:
+
+```{r, dev='svg'}
+# Plot
+ggplot(sim_data) +
+  geom_line(aes(x=x, y=f), size=1) +
+  geom_point(aes(x=x, y=y), color=c_mid) +
+  ggtitle('Simulated Gaussian Process')
+```
+
+TODO: talk about characteristics of the generated model (black line is latent func, red dots are samples, ranges from 0-1, varies smoothly, etc)
+
+Now that we've generated some data from a Gaussian process, we can attempt to fit a Gaussian process model to that data.  We'll use a separate Stan model, one which fits the parameters of the model to the data, instead of generating data from the parameters.
+
+```{r}
+writeLines(readLines("lgp.stan"))
+```
+
+Let's fit the model to our generated data.
+
+```{r}
+# Fit
+stan_rdump(c("N", "x", "y"), file="simulated_lgp.data.R")
+fit_data = read_rdump("simulated_lgp.data.R")
+fit = stan(file='lgp.stan', data=fit_data, seed=seed)
+```
+
+After MCMC sampling has finished, we can view the posterior intervals for each parameter.
+
+```{r}
+# Show results of fit
+print(fit)
+```
+
+Before checking that our fits recover the true parameters which were used to generate the data, we'll run a few diagnostics to ensure that the MCMC sampling went smoothly and that our model isn't misspecified.  
+
+First, we'll check that the MCMC chains converged.  The `Rhat` value in the table above should be close to 1.  The posterior distributions should also look the same across chains.
+
+```{r}
+# Plot density per chain
+posterior = as.array(fit)
+mcmc_dens_overlay(posterior, pars=c("rho", "alpha", "sigma"))
+```
+
+The distributions look similar between chains, which is good!  This should also be apparent in the trace plot (the plot of posterior sample values vs sample number), and there shouldn't be any obvious "sliding" over time.
+
+```{r}
+# Plot trace per chain
+mcmc_trace(posterior, pars=c("rho", "alpha", "sigma"))
+```
+
+Again, everything looks good here.
+
+We should also check that none of the iterations hit the max tree depth.
+
+```{r}
+# Check no chains hit max tree depth
+check_treedepth(fit)
+```
+
+Another diagnostic to check is the energy Bayesian fraction of missing information (E-BFMI).
+
+```{r}
+# Check the energy Bayesian Fraction of Missing Information
+check_energy(fit)
+```
+
+Finally, we should check that iterations did not end with a divergence, indicating areas of parameter space that the sampling was not able to explore well.
+
+```{r}
+# Check for divergences
+check_divergences(fit)
+```
+
+All our diagnostics seem to indicate that we were able to fit the data without any sampling issues!  Now we can see how the posterior distributions for the parameters match up to the true parameters we used to generate the data.
+
+```{r}
+# Plot true vs posterior for rho
+posterior = extract(fit)
+par(mfrow=c(1, 3))
+
+hist(posterior$rho, main="", xlab="rho", ylab="",
+     col=c_dark, yaxt='n', breaks=20)
+abline(v=rho, col=c_light, lwd=3)
+
+hist(posterior$alpha, main="", xlab="alpha", ylab="",
+     col=c_dark, yaxt='n', breaks=20)
+abline(v=alpha, col=c_light, lwd=3)
+
+hist(posterior$sigma, main="", xlab="sigma", ylab="",
+     col=c_dark, yaxt='n', breaks=20)
+abline(v=sigma, col=c_light, lwd=3)
+```
+
+The true parameter values are all within the bulk of the posterior, meaning we were able to successfully recover the true parameters!
+
+## Hidden Markov Models
+
+
+## Bridge Sampling and Model Comparison
+
+

@@ -5,14 +5,21 @@ setwd("~/Code/hmm-vs-gp")
 library(rstan)
 library(ggplot2)
 library(bayesplot)
-library(gridExtra)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 seed = 723456
 
-# Parameters
+# Colors
+c_light <- c("#DCBCBC")
+c_mid <- c("#B97C7C")
+c_dark <- c("#8F2727")
+color_scheme_set("red")
+
+# Data
 N = 100
 x = seq(0, 5, l=N)
+
+# Parameters
 rho = 0.5
 alpha = 2
 sigma = 0.3
@@ -28,7 +35,7 @@ y = extract(sim_fit)$y[1,]
 
 # Plot
 plot(x, f, type="l", lwd=2, ylim=c(0,1))
-points(x, y, col="darkorange", pch=16, cex=0.5)
+points(x, y, col=c_mid, pch=16, cex=0.5)
 title(main='Simulated Gaussian Process')
 
 # Fit
@@ -54,7 +61,6 @@ check_divergences(fit)
 
 # Plot posteriors
 posterior = as.array(fit)
-color_scheme_set("blue")
 mcmc_dens(posterior, pars=c("rho", "alpha", "sigma"))
 
 # Plot trace per chain
@@ -62,3 +68,21 @@ mcmc_trace(posterior, pars=c("rho", "alpha", "sigma"))
 
 # Plot density per chain
 mcmc_dens_overlay(posterior, pars=c("rho", "alpha", "sigma"))
+
+# Plot true vs posterior for rho
+posterior = extract(fit)
+par(mfrow=c(1, 3))
+
+hist(posterior$rho, main="", xlab="rho", ylab="",
+     col=c_dark, yaxt='n', breaks=20)
+abline(v=rho, col=c_light, lwd=3)
+
+hist(posterior$alpha, main="", xlab="alpha", ylab="",
+     col=c_dark, yaxt='n', breaks=20)
+abline(v=alpha, col=c_light, lwd=3)
+
+hist(posterior$sigma, main="", xlab="sigma", ylab="",
+     col=c_dark, yaxt='n', breaks=20)
+abline(v=sigma, col=c_light, lwd=3)
+
+
