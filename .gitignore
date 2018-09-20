@@ -4,6 +4,12 @@
 
 # Session Data files
 .RData
+*.data.R
+*.rds
+
+# R Notebook -generated files
+*.pdf
+*.html
 
 # Example code in package build process
 *-Ex.R
