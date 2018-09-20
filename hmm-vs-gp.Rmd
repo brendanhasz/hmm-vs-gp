@@ -30,7 +30,17 @@ color_scheme_set("red")
 
 ## Gaussian Processes
 
+TODO: intro to GPs, why we want to use them, assume slowly moving, etc
+
+### The Math
+
 TODO: intro/math to GPs, and the logit link function
+
+### Priors
+
+TODO: the priors
+
+### Generating Data from a Gaussian Process
 
 TODO: talk about stan file to generate data
 
@@ -72,7 +82,7 @@ sim_data = data.frame(x=x, y=y, f=f)
 Let's plot our generated Gaussian process:
 
 ```{r, dev='svg'}
-# Plot
+# Plot generated data
 ggplot(sim_data) +
   geom_line(aes(x=x, y=f), size=1) +
   geom_point(aes(x=x, y=y), color=c_mid) +
@@ -80,6 +90,8 @@ ggplot(sim_data) +
 ```
 
 TODO: talk about characteristics of the generated model (black line is latent func, red dots are samples, ranges from 0-1, varies smoothly, etc)
+
+### Fitting a Gaussian Process
 
 Now that we've generated some data from a Gaussian process, we can attempt to fit a Gaussian process model to that data.  We'll use a separate Stan model, one which fits the parameters of the model to the data, instead of generating data from the parameters.
 
@@ -167,7 +179,100 @@ The true parameter values are all within the bulk of the posterior, meaning we w
 
 ## Hidden Markov Models
 
+TODO: intro
+
+### The Math
+
+Our model will have two hidden states ($N=2$).  This means that our model has two free parameters which control the transition probabilities $\phi$.  The probability of transitioning from state $i$ to state $j$ is $\phi_{i,j}$.  In our Stan model, we'll fit the "recurrent" transition probabilities - that is, the probability that the hidden state at the current timestep will be the same as the last timestep.  So, the two free parameters which control the transition probabilities are:
+
+$$
+\phi_{i,i} ~ \text{for} ~ i \in \{1,2\}
+$$
+
+We model the probability of an observation given the state as a beta distribution.  However, for each hidden state, one parameter of the distribution is fixed at $1$, and the other parameter is free.  This gives us two additional parameters ($\theta_1$ and $\theta_2$) which control the observation probabilities corresponding to the hidden states.  So for the first state $x_1$,
+
+
+$$
+y|x_1 \sim \text{Beta}(1, \theta_1)
+$$
+
+and for the second state $x_2$,
+
+$$
+y|x_2 \sim \text{Beta}(\theta_2, 1)
+$$
+
+TODO: explain why and plot of the beta dist for each state
+
+TODO: explain how you compute the prob marginalized over hidden states w/ the forward algorithm
+
+### Priors
+
+We use an gamma prior on the $\theta$ values with $\alpha,\beta=2$, and limit the values to be $\geq 1$,
+
+$$
+\theta_i \sim 1 + \text{Gamma}(\alpha=2, \beta=2)
+$$
+
+For the recurrent transition probability prior, we use a beta distribution with $\alpha,\beta=2$,
+
+$$
+\phi_{i,i} \sim \text{Beta}(2, 2)
+$$
+
+### Generating Data from a Hidden Markov Model
+
+TODO: talk about stan file to generate data
+
+```{r}
+writeLines(readLines("simulate_hmm.stan"))
+```
+
+We can use this Stan model to generate data from our hidden Markov model.  Let's generate 100 samples.
+
+```{r}
+# Data
+N = 100
+```
+
+We will also set the parameters of the HMM.
+
+```{r}
+# Parameters
+phi = array(c(0.9, 0.1, 0.1, 0.9), dim=c(2,2)) #transition probabilities
+theta = c(10, 10) #observation distribution parameters
+```
+
+Now we can run the Stan model, which will generate data from a hidden Markov model with these parameters.
+
+```{r}
+# Simulate
+sim_params = list(N=N, phi=phi, theta=theta)
+sim_fit = stan(file='simulate_hmm.stan', data=sim_params, iter=1, 
+               chains=1, seed=seed, algorithm="Fixed_param")
+
+# Extract simulated output
+s = extract(sim_fit)$s
+y = extract(sim_fit)$y
+sim_data = data.frame(x=seq(N), s=t(s)-1, y=t(y))
+```
+
+Let's plot our generated Gaussian process:
+
+```{r, dev='svg'}
+# Plot generated data
+ggplot(sim_data) +
+  geom_line(aes(x=x, y=s), size=1) +
+  geom_point(aes(x=x, y=y), color=c_mid) +
+  ggtitle('Simulated Hidden Markov Model')
+```
+
+TODO: talk about characteristics of the data which was generated
+
+### Fitting a Hidden Markov Model
+
+TODO
 
 ## Bridge Sampling and Model Comparison
 
-
+TODO
