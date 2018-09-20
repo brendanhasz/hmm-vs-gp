@@ -252,9 +252,9 @@ sim_fit = stan(file='simulate_hmm.stan', data=sim_params, iter=1,
                chains=1, seed=seed, algorithm="Fixed_param")
 
 # Extract simulated output
-s = extract(sim_fit)$s
-y = extract(sim_fit)$y
-sim_data = data.frame(x=seq(N), s=t(s)-1, y=t(y))
+s = t(extract(sim_fit)$s)-1
+y = t(extract(sim_fit)$y)
+sim_data = data.frame(x=seq(N), s=s, y=y)
 ```
 
 Let's plot our generated Gaussian process:
@@ -281,6 +281,7 @@ Let's fit the model to our generated data.
 
 ```{r}
 # Fit
+y = y[,1]
 stan_rdump(c("N", "y"), file="simulated_hmm.data.R")
 fit_data = read_rdump("simulated_hmm.data.R")
 fit = stan(file='hmm.stan', data=fit_data, seed=seed)
