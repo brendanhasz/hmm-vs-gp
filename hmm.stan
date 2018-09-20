@@ -8,14 +8,16 @@ data {
 
 parameters {
   simplex[2] phi[2];      //transition probabilities
-  real<lower=0> theta[2]; //observation distribution params
+  real<lower=1> theta[2]; //observation distribution params
 }
 
 model {
 
   // Priors
-  theta ~ 1 + gamma(2, 2);
-  phi ~ beta(2, 2);
+  target += gamma_lpdf(theta[1]-1 | 2, 2);
+  target += gamma_lpdf(theta[2]-1 | 2, 2);
+  target += beta_lpdf(phi[1,1] | 2, 2);
+  target += beta_lpdf(phi[2,2] | 2, 2);
 
   // Compute the marginal probability over possible sequences
   {

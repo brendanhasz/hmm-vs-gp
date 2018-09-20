@@ -271,7 +271,28 @@ TODO: talk about characteristics of the data which was generated
 
 ### Fitting a Hidden Markov Model
 
-TODO
+Now that we've generated some data from a Gaussian process, we can attempt to fit a Gaussian process model to that data.  We'll use a separate Stan model, one which fits the parameters of the model to the data, instead of generating data from the parameters.
+
+```{r}
+writeLines(readLines("hmm.stan"))
+```
+
+Let's fit the model to our generated data.
+
+```{r}
+# Fit
+stan_rdump(c("N", "y"), file="simulated_hmm.data.R")
+fit_data = read_rdump("simulated_hmm.data.R")
+fit = stan(file='hmm.stan', data=fit_data, seed=seed)
+```
+
+After MCMC sampling has finished, we can view the posterior intervals for each parameter.
+
+```{r}
+# Show results of fit
+print(fit)
+```
+
 
 ## Bridge Sampling and Model Comparison
 

@@ -21,9 +21,9 @@ model {
     matrix[N, N] L_K = cholesky_decompose(K);
 
     // Priors
-    rho ~ inv_gamma(2, 0.5);
-    alpha ~ normal(0, 2);
-    sigma ~ normal(0, 1);
+    target += inv_gamma_lpdf(rho | 2, 0.5);
+    target += normal_lpdf(alpha | 0, 2);
+    target += normal_lpdf(sigma | 0, 1);
 
     // Likelihood
     target += multi_normal_cholesky_lpdf(logit(y) | mu, L_K);
