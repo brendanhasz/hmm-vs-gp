@@ -24,6 +24,7 @@ seed = 723456
 c_light <- c("#DCBCBC")
 c_mid <- c("#B97C7C")
 c_dark <- c("#8F2727")
+c_blue_light <- c("#b2c4df")
 color_scheme_set("red")
 ```
 
@@ -39,6 +40,8 @@ TODO: intro/math to GPs, and the logit link function
 ### Priors
 
 TODO: the priors
+
+TODO: visualize the priors
 
 ### Generating Data from a Gaussian Process
 
@@ -155,24 +158,47 @@ Finally, we should check that iterations did not end with a divergence, indicati
 check_divergences(fit)
 ```
 
-All our diagnostics seem to indicate that we were able to fit the data without any sampling issues!  Now we can see how the posterior distributions for the parameters match up to the true parameters we used to generate the data.
+All our diagnostics seem to indicate that we were able to fit the data without any sampling issues!  Now we can see how the posterior distributions for the parameters match up to the true parameters we used to generate the data.  First let's define a function which will plot our posterior distributions from the MCMC samples and their 95% confidence intervals.
+
+```{r}
+# Function to plot posterior distributions w/ 95% confidence intervals
+interval_density = function(x, bot=0.025, top=0.975,
+                            main="", xlab="", ylab="",
+                            xlim=c(min(x),max(x)), lwd=1,
+                            col1=c("#DCBCBC"), col2=c("#B97C7C")) {
+  dens = density(x)
+  plot(dens, main=main, xlab=xlab, ylab=ylab, xlim=xlim,
+       lwd=lwd, yaxt='n', bty='n', type='n')
+  polygon(dens, col=col1, border=NA)
+  qbot <- quantile(x, bot)
+  qtop <- quantile(x, top)
+  x1 = min(which(dens$x >= qbot))
+  x2 = max(which(dens$x < qtop))
+  with(dens, polygon(x=x[c(x1,x1:x2,x2)], y=c(0, y[x1:x2], 0), col=col2, border=NA))
+}
+```
+
+And now we can view the posteriors as compared to the true parameter values which were used to generate the data.
 
 ```{r}
 # Plot true vs posterior for rho
 posterior = extract(fit)
-par(mfrow=c(1, 3))
+par(mfrow=c(3, 1))
 
-hist(posterior$rho, main="", xlab="rho", ylab="",
-     col=c_dark, yaxt='n', breaks=20)
-abline(v=rho, col=c_light, lwd=3)
+#hist(posterior$rho, main="", xlab="rho", ylab="",
+#     col=c_dark, yaxt='n', breaks=20)
+interval_density(posterior$rho, xlab="rho")
+abline(v=rho, col=c_dark, lwd=3)
 
-hist(posterior$alpha, main="", xlab="alpha", ylab="",
-     col=c_dark, yaxt='n', breaks=20)
-abline(v=alpha, col=c_light, lwd=3)
+#hist(posterior$alpha, main="", xlab="alpha", ylab="",
+#     col=c_dark, yaxt='n', breaks=20)
+interval_density(posterior$rho, xlab="alpha")
+abline(v=alpha, col=c_dark, lwd=3)
 
-hist(posterior$sigma, main="", xlab="sigma", ylab="",
-     col=c_dark, yaxt='n', breaks=20)
-abline(v=sigma, col=c_light, lwd=3)
+#hist(posterior$sigma, main="", xlab="sigma", ylab="",
+#     col=c_dark, yaxt='n', breaks=20)
+interval_density(posterior$rho, xlab="sigma")
+abline(v=sigma, col=c_dark, lwd=3)
 ```
 
 The true parameter values are all within the bulk of the posterior, meaning we were able to successfully recover the true parameters!
@@ -214,11 +240,15 @@ $$
 \theta_i \sim 1 + \text{Gamma}(\alpha=2, \beta=2)
 $$
 
+TODO: visualize that prior
+
 For the recurrent transition probability prior, we use a beta distribution with $\alpha,\beta=2$,
 
 $$
 \phi_{i,i} \sim \text{Beta}(2, 2)
 $$
+
+TODO: visualize that prior
 
 ### Generating Data from a Hidden Markov Model
 
@@ -294,6 +324,63 @@ After MCMC sampling has finished, we can view the posterior intervals for each p
 print(fit)
 ```
 
+Again we'll check several diagnoistics to ensure our sampling effectively explored the parameter space.  The Rhat values look good, and if we look at the posterior distributions per chain, it appears the chains converged.
+
+
+```{r}
+# Plot density per chain
+posterior = as.array(fit)
+mcmc_dens_overlay(posterior, 
+                  pars=c("phi[1,1]", "phi[2,2]", "theta[1]", "theta[2]"))
+```
+
+The trace plots also indicate that the chains explored similar areas of parameter space, and that the warmup period was long enough.
+
+```{r}
+# Plot trace per chain
+mcmc_trace(posterior, 
+           pars=c("phi[1,1]", "phi[2,2]", "theta[1]", "theta[2]"))
+```
+
+Our other three diagnostics also look good:
+
+```{r}
+# Check other diagnostics
+check_treedepth(fit)
+check_energy(fit)
+check_divergences(fit)
+```
+
+Now we can see how the posterior distributions for the parameters match up to the true parameters we used to generate the data.  We'll also plot the prior distributions for each parameter so we can see how that effects the posterior.  The prior distribution is plotted in blue, the posterior distribution in red, and the parameter value used to generate the data as a dark red vertical line.
+
+```{r}
+# Plot true vs posterior for rho
+posterior = extract(fit)
+par(mfrow=c(2, 2))
+
+beta_prior <- function(x) dbeta(x, 2, 2)
+gamma_prior <- function(x) dgamma(x, 2, 1/2)
+
+interval_density(posterior$phi[,1,1], xlab="phi[,1,1]", xlim=c(0,1))
+plot(beta_prior, 0, 1, add=TRUE, col=c_blue_light, lwd=3)
+abline(v=phi[1,1], col=c_dark, lwd=3)
+
+interval_density(posterior$phi[,2,2], xlab="phi[,2,2]", xlim=c(0,1))
+plot(beta_prior, 0, 1, add=TRUE, col=c_blue_light, lwd=3)
+abline(v=phi[2,2], col=c_dark, lwd=3)
+
+interval_density(posterior$theta[,1], xlab="theta[1]", xlim=c(0,12))
+plot(gamma_prior, 0, 12, add=TRUE, col=c_blue_light, lwd=3)
+abline(v=theta[1], col=c_dark, lwd=3)
+
+interval_density(posterior$theta[,2], xlab="theta[2]", xlim=c(0,12))
+plot(gamma_prior, 0, 12, add=TRUE, col=c_blue_light, lwd=3)
+abline(v=theta[2], col=c_dark, lwd=3)
+```
+
+TODO: talk about features of that: 1) posterior pulled away from prior towards true value, 2) pulled closer for state 2 b/c there were more datapoints generated by state 2
+
+TODO: conclusion 
 
 ## Bridge Sampling and Model Comparison
 
