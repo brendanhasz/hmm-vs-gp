@@ -28,6 +28,7 @@ model {
     // Likelihood
     target += multi_normal_cholesky_lpdf(logit(y) | mu, L_K);
 
+    // TODO: do you have to multiply those normal_lpdf values by 2? (b/c of half-normal dist) - don't want to mess up the bridge sampler...
     // TODO: handle multiple trials
     // TODO: multilevel model to handle multiple subjects
 }

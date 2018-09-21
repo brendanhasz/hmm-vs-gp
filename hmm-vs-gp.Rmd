@@ -16,6 +16,7 @@ setwd("~/Code/hmm-vs-gp")
 library(rstan)
 library(ggplot2)
 library(bayesplot)
+library(invgamma)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 seed = 723456
@@ -41,9 +42,52 @@ TODO: intro/math to GPs, and the logit link function
 
 ### Priors
 
-TODO: the priors
+TODO: this is a Bayesian analysis, so... priors!
 
-TODO: visualize the priors
+For the length scale parameter ($\rho$) we use an inverse gamma prior with $\alpha=2$ and $\beta=0.5$.
+
+$$
+\frac{1}{\rho} \sim \text{Gamma}(\alpha=2, \beta=0.5)
+$$
+
+This results in a distribution which is defined $>0$, and has a low density near zero and at higher values.
+
+```{r}
+rho_prior <- function(x) dinvgamma(x, 2, 1/2)
+plot(rho_prior, 0, 3, xlab='Rho', ylab='',
+     main="Length scale parameter prior",
+      yaxt='n', bty='n', lwd=3, col=c_blue_mid)
+```
+
+For the signal standard deviation parameter ($\alpha$, aka "marginal" standard deviation or "ouput" standard deviation) we use a half-normal prior (a normal distribution but with zero density $<0$) with $\sigma=2$.
+
+$$
+\alpha \sim \mathcal{N}(\mu=0, \sigma=2), ~ \alpha \geq 0
+$$
+
+This results in a distribution which is defined $>0$, and has a low density at higher values.
+
+```{r}
+alpha_prior <- function(x) 2*dnorm(x, 0, 2)
+plot(alpha_prior, 0, 6, xlab='Alpha', ylab='',
+     main="Signal standard deviation parameter prior",
+      yaxt='n', bty='n', lwd=3, col=c_blue_mid)
+```
+
+For the noise standard deviation parameter ($\sigma$) we also use a half-normal prior, but with $\sigma=1$.
+
+$$
+\sigma \sim \mathcal{N}(\mu=0, \sigma=1), ~ \alpha \geq 0
+$$
+
+This results in a distribution which is defined $>0$, and has a low density at higher values.
+
+```{r}
+sigma_prior <- function(x) 2*dnorm(x, 0, 1)
+plot(sigma_prior, 0, 6, xlab='Sigma', ylab='',
+     main="Noise standard deviation parameter prior",
+      yaxt='n', bty='n', lwd=3, col=c_blue_mid)
+```
 
 ### Generating Data from a Gaussian Process
 
