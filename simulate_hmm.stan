@@ -25,10 +25,6 @@ generated quantities {
   real y[N];         //observations
   int<lower=1> s[N]; //hidden states
 
-  for (i in 1:2) {
-      print(phi[i])
-  }
-
   // Generate hidden state sequence and observations
   s[1] = categorical_rng(rep_vector(0.5, 2)); //start at random state
   y[1] = beta_rng(thetas[s[1],1], thetas[s[1],2]); //generate observation

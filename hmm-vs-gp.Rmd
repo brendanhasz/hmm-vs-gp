@@ -1,6 +1,8 @@
 ---
 title: "Bayesian Modelling of Gaussian Processes and Hidden Markov Models with Stan"
-output: html_notebook
+output:
+  html_document:
+    toc: yes
 ---
 
 TODO: intro
@@ -168,7 +170,7 @@ Before checking that our fits recover the true parameters which were used to gen
 
 First, we'll check that the MCMC chains converged.  The `Rhat` value in the table above should be close to 1.  The posterior distributions should also look the same across chains.
 
-```{r}
+```{r, dev='svg'}
 # Plot density per chain
 posterior = as.array(fit)
 mcmc_dens_overlay(posterior, pars=c("rho", "alpha", "sigma"))
@@ -176,7 +178,7 @@ mcmc_dens_overlay(posterior, pars=c("rho", "alpha", "sigma"))
 
 The distributions look similar between chains, which is good!  This should also be apparent in the trace plot (the plot of posterior sample values vs sample number), and there shouldn't be any obvious "sliding" over time.
 
-```{r}
+```{r, dev='svg'}
 # Plot trace per chain
 mcmc_trace(posterior, pars=c("rho", "alpha", "sigma"))
 ```
@@ -229,21 +231,15 @@ And now we can view the posteriors as compared to the true parameter values whic
 ```{r}
 # Plot true vs posterior for rho
 posterior = extract(fit)
-par(mfrow=c(3, 1))
+par(mfrow=c(1, 3))
 
-#hist(posterior$rho, main="", xlab="rho", ylab="",
-#     col=c_dark, yaxt='n', breaks=20)
 interval_density(posterior$rho, xlab="rho")
 abline(v=rho, col=c_dark, lwd=3)
 
-#hist(posterior$alpha, main="", xlab="alpha", ylab="",
-#     col=c_dark, yaxt='n', breaks=20)
-interval_density(posterior$rho, xlab="alpha")
+interval_density(posterior$alpha, xlab="alpha")
 abline(v=alpha, col=c_dark, lwd=3)
 
-#hist(posterior$sigma, main="", xlab="sigma", ylab="",
-#     col=c_dark, yaxt='n', breaks=20)
-interval_density(posterior$rho, xlab="sigma")
+interval_density(posterior$sigma, xlab="sigma")
 abline(v=sigma, col=c_dark, lwd=3)
 ```
 
@@ -290,7 +286,7 @@ This results in a distribution which has zero density $<1$, and low density at h
 
 NOTE: could also use a log-Cauchy distribution ($\theta \sim 1/(log(x)^2+1)$)?  Same bounds, has ridiculously long tail on the positive end...
 
-```{r}
+```{r, dev='svg'}
 theta_prior <- function(x) dgamma(x-1, 2, 1/2)
 plot(theta_prior, 0, 10, xlab='Theta', ylab='',
      main="Observation model parameter prior",
@@ -307,7 +303,7 @@ $$
 
 This results in a distribution which is bounded between $0$ and $1$, and has lower density towards more extreme values.
 
-```{r}
+```{r, dev='svg'}
 trans_prior <- function(x) dbeta(x, 2, 2)
 plot(trans_prior, 0, 1, xlab='Phi_{i,i}', ylab='',
      main="Recurrent transition probability prior",
@@ -393,7 +389,7 @@ print(fit)
 Again we'll check several diagnoistics to ensure our sampling effectively explored the parameter space.  The Rhat values look good, and if we look at the posterior distributions per chain, it appears the chains converged.
 
 
-```{r}
+```{r, dev='svg'}
 # Plot density per chain
 posterior = as.array(fit)
 mcmc_dens_overlay(posterior, 
@@ -402,7 +398,7 @@ mcmc_dens_overlay(posterior,
 
 The trace plots also indicate that the chains (likely) explored similar areas of parameter space, and that the warmup period was (probably) long enough.
 
-```{r}
+```{r, dev='svg'}
 # Plot trace per chain
 mcmc_trace(posterior, 
            pars=c("phi[1,1]", "phi[2,2]", "theta[1]", "theta[2]"))
@@ -419,7 +415,7 @@ check_divergences(fit)
 
 Now we can see how the posterior distributions for the parameters match up to the true parameters we used to generate the data.  We'll also plot the prior distributions for each parameter so we can see how that effects the posterior.  The prior distribution is plotted in blue, the posterior distribution in red, and the parameter value used to generate the data as a dark red vertical line.
 
-```{r}
+```{r, dev='svg'}
 # Plot true vs posterior for rho
 posterior = extract(fit)
 par(mfrow=c(2, 2))
