@@ -19,6 +19,7 @@ library(rstan)
 library(ggplot2)
 library(bayesplot)
 library(invgamma)
+library(bridgesampling)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 seed = 723456
@@ -70,8 +71,8 @@ $$
 This results in a distribution which only has density $\geq 0$, and has a low density at higher values.
 
 ```{r}
-alpha_prior <- function(x) ifelse(x>0, 2*dnorm(x, 0, 2), 0)
-plot(alpha_prior, -1, 6, xlab='Alpha', ylab='',
+alpha_prior <- function(x) ifelse(x>=0, 2*dnorm(x, 0, 2), 0)
+plot(alpha_prior, 0, 6, xlab='Alpha', ylab='',
      main="Signal standard deviation parameter prior",
       yaxt='n', bty='n', lwd=3, col=c_blue_mid)
 ```
@@ -85,8 +86,8 @@ $$
 This also results in a distribution which only has density $\geq 0$, and has a low density at higher values.
 
 ```{r}
-sigma_prior <- function(x) ifelse(x>0, 2*dnorm(x, 0, 1), 0)
-plot(sigma_prior, -1, 6, xlab='Sigma', ylab='',
+sigma_prior <- function(x) ifelse(x>=0, 2*dnorm(x, 0, 1), 0)
+plot(sigma_prior, 0, 6, xlab='Sigma', ylab='',
      main="Noise standard deviation parameter prior",
       yaxt='n', bty='n', lwd=3, col=c_blue_mid)
 ```
@@ -121,12 +122,12 @@ Now we can run the Stan model, which will generate data from a Gaussian process 
 ```{r}
 # Simulate
 sim_params = list(N=N, x=x, rho=rho, alpha=alpha, sigma=sigma)
-sim_fit = stan(file='simulate_lgp.stan', data=sim_params, iter=1, 
-               chains=1, seed=seed, algorithm="Fixed_param")
+sim_gp = stan(file='simulate_lgp.stan', data=sim_params, iter=1, 
+              chains=1, seed=seed, algorithm="Fixed_param")
 
 # Extract simulated output
-f = extract(sim_fit)$f[1,]
-y = extract(sim_fit)$y[1,]
+f = extract(sim_gp)$f[1,]
+y = extract(sim_gp)$y[1,]
 sim_data = data.frame(x=x, y=y, f=f)
 ```
 
@@ -155,15 +156,15 @@ Let's fit the model to our generated data.
 ```{r}
 # Fit
 stan_rdump(c("N", "x", "y"), file="simulated_lgp.data.R")
-fit_data = read_rdump("simulated_lgp.data.R")
-fit = stan(file='lgp.stan', data=fit_data, seed=seed)
+gp_data = read_rdump("simulated_lgp.data.R")
+fit_gp = stan(file='lgp.stan', data=gp_data, seed=seed)
 ```
 
 After MCMC sampling has finished, we can view the posterior intervals for each parameter.
 
 ```{r}
 # Show results of fit
-print(fit)
+print(fit_gp)
 ```
 
 Before checking that our fits recover the true parameters which were used to generate the data, we'll run a few diagnostics to ensure that the MCMC sampling went smoothly and that our model isn't misspecified.  
@@ -172,7 +173,7 @@ First, we'll check that the MCMC chains converged.  The `Rhat` value in the tabl
 
 ```{r, dev='svg'}
 # Plot density per chain
-posterior = as.array(fit)
+posterior = as.array(fit_gp)
 mcmc_dens_overlay(posterior, pars=c("rho", "alpha", "sigma"))
 ```
 
@@ -189,21 +190,21 @@ We should also check that none of the iterations hit the max tree depth.
 
 ```{r}
 # Check no chains hit max tree depth
-check_treedepth(fit)
+check_treedepth(fit_gp)
 ```
 
 Another diagnostic to check is the energy Bayesian fraction of missing information (E-BFMI).
 
 ```{r}
 # Check the energy Bayesian Fraction of Missing Information
-check_energy(fit)
+check_energy(fit_gp)
 ```
 
 Finally, we should check that iterations did not end with a divergence, indicating areas of parameter space that the sampling was not able to explore well.
 
 ```{r}
 # Check for divergences
-check_divergences(fit)
+check_divergences(fit_gp)
 ```
 
 All our diagnostics seem to indicate that we were able to fit the data without any sampling issues!  Now we can see how the posterior distributions for the parameters match up to the true parameters we used to generate the data.  First let's define a function which will plot our posterior distributions from the MCMC samples and their 95% confidence intervals.
@@ -230,7 +231,7 @@ And now we can view the posteriors as compared to the true parameter values whic
 
 ```{r}
 # Plot true vs posterior for rho
-posterior = extract(fit)
+posterior = extract(fit_gp)
 par(mfrow=c(1, 3))
 
 interval_density(posterior$rho, xlab="rho")
@@ -339,12 +340,12 @@ Now we can run the Stan model, which will generate data from a hidden Markov mod
 ```{r}
 # Simulate
 sim_params = list(N=N, phi=phi, theta=theta)
-sim_fit = stan(file='simulate_hmm.stan', data=sim_params, iter=1, 
+sim_hmm = stan(file='simulate_hmm.stan', data=sim_params, iter=1, 
                chains=1, seed=seed, algorithm="Fixed_param")
 
 # Extract simulated output
-s = t(extract(sim_fit)$s)-1
-y = t(extract(sim_fit)$y)
+s = t(extract(sim_hmm)$s)-1
+y = t(extract(sim_hmm)$y)
 sim_data = data.frame(x=seq(N), s=s, y=y)
 ```
 
@@ -375,15 +376,15 @@ Let's fit the model to our generated data.
 # Fit
 y = y[,1]
 stan_rdump(c("N", "y"), file="simulated_hmm.data.R")
-fit_data = read_rdump("simulated_hmm.data.R")
-fit = stan(file='hmm.stan', data=fit_data, seed=seed)
+hmm_data = read_rdump("simulated_hmm.data.R")
+fit_hmm = stan(file='hmm.stan', data=hmm_data, seed=seed)
 ```
 
 After MCMC sampling has finished, we can view the posterior intervals for each parameter.
 
 ```{r}
 # Show results of fit
-print(fit)
+print(fit_hmm)
 ```
 
 Again we'll check several diagnoistics to ensure our sampling effectively explored the parameter space.  The Rhat values look good, and if we look at the posterior distributions per chain, it appears the chains converged.
@@ -391,7 +392,7 @@ Again we'll check several diagnoistics to ensure our sampling effectively explor
 
 ```{r, dev='svg'}
 # Plot density per chain
-posterior = as.array(fit)
+posterior = as.array(fit_hmm)
 mcmc_dens_overlay(posterior, 
                   pars=c("phi[1,1]", "phi[2,2]", "theta[1]", "theta[2]"))
 ```
@@ -408,16 +409,16 @@ Our other three diagnostics also look good:
 
 ```{r}
 # Check other diagnostics
-check_treedepth(fit)
-check_energy(fit)
-check_divergences(fit)
+check_treedepth(fit_hmm)
+check_energy(fit_hmm)
+check_divergences(fit_hmm)
 ```
 
 Now we can see how the posterior distributions for the parameters match up to the true parameters we used to generate the data.  We'll also plot the prior distributions for each parameter so we can see how that effects the posterior.  The prior distribution is plotted in blue, the posterior distribution in red, and the parameter value used to generate the data as a dark red vertical line.
 
 ```{r, dev='svg'}
 # Plot true vs posterior for rho
-posterior = extract(fit)
+posterior = extract(fit_hmm)
 par(mfrow=c(2, 2))
 
 beta_prior <- function(x) dbeta(x, 2, 2)
@@ -443,6 +444,80 @@ abline(v=theta[2], col=c_dark, lwd=3)
 We were mostly able to recover the parameters which generated the data - but not perfectly!  This is because we set parameter values which didn't align very well with the priors - with more data the posteriors would be pulled even closer to the true vaules.  Notice how the posteriors for the first state's parameters ($\phi_{1,1}$ and $\theta_1$) are closer to the true value than the posteriors for the second state's parameters.  This is because in our generated data, more observations occurred during the first state.  Therefore, the fit was able to better infer the true parameters corresponding to that state.  Our posteriors were indeed pulled towards the true parameter values, which is what we want to see, and indicates our Bayesian fit of the hidden Markov model was successful - we'd just ideally have more data!
 
 
-## Bridge Sampling and Model Comparison
+## Model Comparison using Bridge Sampling 
 
-TODO
+TODO: intro to why we want to compare which model is more likely, and that we can use bridge sampling to do that
+
+### Bridge Sampling
+
+TODO: math etc of bridge sampling and that it gets you an estimate of the marginal likelihood, and Bayes factor
+
+### Comparing GP and HMM models with Bridge Sampling
+
+Let's use bridge sampling to compare the marginal likelihoods of each model given the data that we generated using a Gaussian process.  If everything is working correctly, the Bayes factor should favor the Gaussian process model over the hidden Markov model (because we used the Gaussian process to generate the data in the first place!).
+
+First we have to fit the hidden Markov model to the data generated by a Gaussian process (we've already fit the GP model to the GP-generated data, so we won't re-do that here).
+
+```{r}
+# Fit HMM to GP-generated data
+gp_data = read_rdump("simulated_lgp.data.R")
+fit_hmm_to_gp = stan(file='hmm.stan', data=gp_data, seed=seed)
+```
+
+We are able to fit the hidden Markov model to the data generated by the Gaussian process without problems.
+
+TODO: diagnostics
+
+The resulting fit looks reasonable.
+
+```{r}
+print(fit_hmm_to_gp)
+```
+
+However, TODO: 
+
+```{r}
+# Perform bridge sampling and view Bayes factor for GP-generated data
+bridge_gp_gp = bridge_sampler(fit_gp)
+bridge_hmm_gp = bridge_sampler(fit_hmm_to_gp)
+print("Bayes factor of GP to HMM on GP-generated data")
+bf(bridge_gp_gp, bridge_hmm_gp)
+```
+
+TODO: or not. hm. something's wrong here... log marginal likelihood for gp->gp_data is tiny and for hmm->gp_data is huge... The mean log posterior value for gp->gp_data is -59.25 while the mean log post val for hmm->gp_data is +31.38.  sigh.  I'll bet it's because the p(x|params) for any individual datapoint for the HMM model can be large (>1, a beta dist w/ alpha=1 and beta=4.6 is ~5 near zero). So if you multiply those all together for the p(x|params) for all the data you get a huge number, whereas for the GP it's a multivariate normal dist in inf-space so likely to be small anywhere... Maybe.  Ideas:
+
+* HMM model might just be specified incorrectly.  Should double-check and test.
+* Or, another possibility is that since your "parameters" of the GP are actually the hyperparameters, you should be using (what's normally referred to as) the *marginal likelihood* of the GP (given those hyperparams) as the likelihood.  See line 7 of Algorithm 2.1 (pg 19) in Rasmussen & Williams' GP book.  ATM this seems most likely.
+* ~~Might have to add a normalizer to the HMM? Integral of all possible y combinations for the GP is 1 (because it's a multivariate normal), but integral of all possible y combos for the HMM is larger than that I think.~~  Nope actually, it's 1 - I checked.
+* Maybe it's not valid to compare the marginal probabilities of models in completely different classes?  All the examples in bridgesampling docs are comparing models of the same class.
+
+```{r}
+# Fit GP to HMM-generated data
+# TODO: reformat data?
+#fit_gp_to_hmm = # TODO: stan fit of GP to HMM-generated data
+  
+# Fit HMM to GP-generated data
+# TODO: reformat data?
+#fit_hmm_to_gp = # TODO: stan fit of HMM to GP-generated data
+  
+# Look at Bayes factor for GP-generated data
+#bridge_gp_gp = bridge_sampler(fit_gp)
+#bridge_hmm_gp = bridge_sampler(fit_hmm_to_gp)
+#print("Bayes factor of GP to HMM on GP-generated data")
+#bf(bridge_gp_gp, bridge_hmm_gp)
+
+# Look at Bayes factor for HMM-generated data
+#bridge_hmm_hmm = bridge_sampler(fit_hmm)
+#bridge_gp_hmm = bridge_sampler(fit_gp_to_hmm)
+#print("Bayes factor of HMM to GP on HMM-generated data")
+#bf(bridge_hmm_hmm, bridge_gp_hmm)
+
+# Fit objects
+#fit_gp
+#fit_hmm
+
+# Data
+#gp_data
+#hmm_data
+```
+
