@@ -67,11 +67,11 @@ $$
 \alpha \sim \mathcal{N}(\mu=0, \sigma=2), ~ \alpha \geq 0
 $$
 
-This results in a distribution which is defined $>0$, and has a low density at higher values.
+This results in a distribution which only has density $\geq 0$, and has a low density at higher values.
 
 ```{r}
-alpha_prior <- function(x) 2*dnorm(x, 0, 2)
-plot(alpha_prior, 0, 6, xlab='Alpha', ylab='',
+alpha_prior <- function(x) ifelse(x>0, 2*dnorm(x, 0, 2), 0)
+plot(alpha_prior, -1, 6, xlab='Alpha', ylab='',
      main="Signal standard deviation parameter prior",
       yaxt='n', bty='n', lwd=3, col=c_blue_mid)
 ```
@@ -82,11 +82,11 @@ $$
 \sigma \sim \mathcal{N}(\mu=0, \sigma=1), ~ \alpha \geq 0
 $$
 
-This results in a distribution which is defined $>0$, and has a low density at higher values.
+This also results in a distribution which only has density $\geq 0$, and has a low density at higher values.
 
 ```{r}
-sigma_prior <- function(x) 2*dnorm(x, 0, 1)
-plot(sigma_prior, 0, 6, xlab='Sigma', ylab='',
+sigma_prior <- function(x) ifelse(x>0, 2*dnorm(x, 0, 1), 0)
+plot(sigma_prior, -1, 6, xlab='Sigma', ylab='',
      main="Noise standard deviation parameter prior",
       yaxt='n', bty='n', lwd=3, col=c_blue_mid)
 ```
