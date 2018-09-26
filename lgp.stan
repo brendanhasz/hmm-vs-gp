@@ -5,7 +5,8 @@ data {
 }
 
 transformed data {
-    vector[N] mu = rep_vector(0, N);
+    vector[N] mu = rep_vector(0, N);       //mean function
+    real ln_scale = -sum(log(y)+log(1-y)); //scale for logit normal dists
 }
 
 parameters {
@@ -22,13 +23,15 @@ model {
 
     // Priors
     target += inv_gamma_lpdf(rho | 2, 0.5);
-    target += normal_lpdf(alpha | 0, 2);
-    target += normal_lpdf(sigma | 0, 1);
+    target += normal_lpdf(alpha | 0, 2) + log(2); //half-normal dists
+    target += normal_lpdf(sigma | 0, 1) + log(2); //mult density by 2
 
     // Likelihood
     target += multi_normal_cholesky_lpdf(logit(y) | mu, L_K);
 
-    // TODO: do you have to multiply those normal_lpdf values by 2? (b/c of half-normal dist) - don't want to mess up the bridge sampler...
+    // Add scale such that likelihood integrates to 1 over y
+    target += ln_scale;
+    
     // TODO: handle multiple trials
     // TODO: multilevel model to handle multiple subjects
 }
