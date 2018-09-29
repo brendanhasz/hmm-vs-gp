@@ -16,8 +16,8 @@ model {
   // Priors
   target += gamma_lpdf(theta[1]-1 | 2, 2);
   target += gamma_lpdf(theta[2]-1 | 2, 2);
-  target += beta_lpdf(phi[1,1] | 2, 2);
-  target += beta_lpdf(phi[2,2] | 2, 2);
+  target += beta_lpdf(phi[1,1] | 1.2, 1.2);
+  target += beta_lpdf(phi[2,2] | 1.2, 1.2);
 
   // Compute the marginal probability over possible sequences
   {
