@@ -6,7 +6,28 @@ output:
     self_contained: no
 ---
 
-TODO: intro
+This post is about how to build Bayesian models of Gaussian processes and hidden Markov models in R using [Stan](http://mc-stan.org/), how to fit them to data, and how to comapre those fits to see which model is more likely to explain the data.  But first - who cares which of those models best explains some data?
+
+TOC
+
+## Background
+
+Lots of work in perceptual decision making has led to the hypothesis that perceptual decisions (such as deciding which way an object is moving, or whether an animal is predator or prey) are made by brain networks accumulating evidence for each option until some decision threshold is passed.  These evidence acumulation theories assume that brain activity starts at some baseline, and then integrates the incoming evidence for each choice.  When a "decision threshold" is passed, the option corresponding to that threshold is choosen.  Lots of work has shown that models built in this way (called [drift-diffusion models](https://en.wikipedia.org/wiki/Two-alternative_forced_choice#Computational_models_of_decision_making)) explain perceptual decisions very well.
+
+For example, the image below shows simulations of such an integration process.  Each line is a different trial or decision.
+
+![drift diffusion](https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Drift_Diffusion_Model_Accumulation_to_Threshold_Example_Graphs.png/796px-Drift_Diffusion_Model_Accumulation_to_Threshold_Example_Graphs.png "Image by Rtibbles")
+
+However, there are other types of decisions besides purely perceptual ones.  Value-based decisions are higher-level decisions between actions which may result in outcomes that have different values to the chooser (like choosing what product to buy, which stock to invest in, or where to go for lunch).  These decisions are different from perceptual decisions because the evidence for one option over the other usually isn't coming directly from the senses.  With value-based decisions the chooser is using internal information as evidence: memories, background knowledge, and previously-learned values.
+
+Some people have suggested that despite the difference in where the evidence is coming from, value-based decisions might also be made in the brain using this accumulation-to-threshold algorithm.  However, others have hypothesized that instead the brain may simply sample the options serially, and choose one after enough sampling.  This makes sense intuitively - if you're deciding between two products to buy, it seems like you consider one option, then the other, and then maybe consider the first option again, etc, until you've decided which option to take.  The accumulation-to-threshold algorithm implies that both options are considered simultaneously!
+
+To determine if a brain area is sampling from options or integrating to a threshold, we can record neural activity from that area, and decode the probability that the brain area is representing one option over the other.  If the probability starts somewhere in the middle and  
+
+https://en.wikipedia.org/wiki/Gaussian_process
+
+https://en.wikipedia.org/wiki/Hidden_Markov_model
+
 
 ## Setup 
 
@@ -40,6 +61,10 @@ color_scheme_set("red")
 
 TODO: intro to GPs, why we want to use them, assume slowly moving, etc
 
+The first model we'll be fitting is a Gaussian Process.  These 
+
+
+
 ### The Math
 
 TODO: intro/math to GPs, but we have values between 0 and 1, not otherwise, so we need to use the logit link function, and therefore we're going to be thinking of our data as coming from a multivariate logistic-normal distribution (but with *sigmoidal* elements, *not* a simplex, i.e. all the elements in y don't sum to 1) and so mathematically it's the same as logit-ing your x values, sampling from a normal distribution in infinity space w/ those transformed values, and then applying the scale
@@ -70,7 +95,7 @@ $$
   \right)
 $$
 
-Which is equivalent to the value of a (regular) multivariate normal distribution given logit-transformed $x$, times a scaling factor which ensures the density integrates to 1.
+Which is a lot of math - but it's just equivalent to the value of a (regular) multivariate normal distribution given logit-transformed $x$, times a scaling factor which ensures the density integrates to 1.
 
 $$
 \mathcal{N}_{\text{logit}}(\mathbf{x};\mathbf{\mu},\mathbf{\Sigma}) = 
@@ -78,11 +103,13 @@ $$
   \mathcal{N}(\text{logit}(\mathbf{x});\mathbf{\mu},\mathbf{\Sigma})
 $$
 
-Without this scaling factor, we would be logit-transforming the $x$ values without appropriately scaling the density to compensate, and the probability density wouldn't integrate to 1!
+Without this scaling factor, we would be logit-transforming the $x$ values without appropriately scaling the probability density to compensate, and the probability density wouldn't integrate to 1!
+
+For more information on Gaussian processes in general, Carl Rasmussen and Christopher Williams have written a [great textbook](http://www.gaussianprocess.org/gpml/) on GPs which is free.
 
 ### Priors
 
-TODO: this is a Bayesian analysis, so... priors!
+This is a Bayesian analysis, and so we'll be putting reasonable priors on our variables of interest.  The priors represent our expectation of what values the parameters can reasonably take, *prior* to seeing the data.  That is - how likely we think it is that a parameter can take a given value.  For a Gaussian process, it's important to have priors on our parameters, especially the length-scale parameter.  Without it, the best-fit length scale parameter can explode to huge values or shrink to tiny values, because our data does not contain any information about shorter timescales than occur between our datapoints, or larger timescales than the duration of our data.  Check out this [great case study](https://betanalpha.github.io/assets/case_studies/gp_part3/part3.html) by Michael Betancourt for more about why that happens.
 
 For the length scale parameter ($\rho$) we use an inverse gamma prior with $\alpha=2$ and $\beta=0.5$.
 
@@ -90,7 +117,7 @@ $$
 \frac{1}{\rho} \sim \text{Gamma}(\alpha=2, \beta=0.5)
 $$
 
-This results in a distribution which is defined $>0$, and has a low density near zero and at higher values.
+This results in a distribution which is defined $>0$, and has a low density near zero and at higher values.  This prior beleif about the value of $\rho$ will be incorporated into our Bayesian estimate of the value when we use Bayes rule to compute the posterior probability.
 
 ```{r, dev='svg'}
 rho_prior <- function(x) dinvgamma(x, 2, 1/2)
@@ -582,7 +609,7 @@ cat(sprintf("Log Bayes factor in favor of HMM over GP on HMM-generated data: %0.
 
 TODO: look at error of the marginal prob estimates and how that effects the error of the bayes factor
 
-Finally, note that the log marginal likelihood of the Gaussian process was greater when fit to data generated by a Gaussian process than when fit to data generated by a hidden Markov model.
+Finally, the log marginal likelihood of the Gaussian process was greater when fit to data generated by a Gaussian process than when fit to data generated by a hidden Markov model.
 
 ```{r}
 cat(sprintf("Log marginal likelihood of GP fit to GP-generated data: %0.3g\n", bridge_gp_gp$logml))
@@ -596,3 +623,10 @@ cat(sprintf("Log marginal likelihood of HMM fit to HMM-generated data: %0.3g\n",
 cat(sprintf("Log marginal likelihood of HMM fit to GP-generated data: %0.3g\n", bridge_hmm_gp$logml))
 ```
 
+## Conclusion
+
+By fitting both the Gaussian process model and the hidden Markov model to neural data, we can use bride sampling to find which model is more likely to explain the neural activity.  Of course that will have to happen in a paper and not in a blog post.
+
+There are a few other details we need to worry about when applying these models to real data.  First, the Stan models above assumed a single process evolving over a short period of time.  However, we're studing neural activity during tasks which have repeated trials.  So, in order to evaluate the model likelihoods over all trials, we have to alter the Stan code to sum the log probability over all trials.  Also, with real data we have multiple subjects, which means we have to build a multilevel model which allows the parameters to vary slightly between subjects (see my [previous post](https://brendanhasz.github.io/2018/06/27/bayesian-correlations.html) about multilevel modelling with Stan).
+
+It's also important to realize that even if the Bayes factor favors one of these models over the other, that doesn't imply that model explains how the neural activity is being generated.  Rather, it just shows that the dynamics of the neural activity better match one model than the other.  The Bayes factor between the Gaussian process and the hidden Markov model will only tell us whether the neural representation of reward appears to be flicking back and forth between options (as would be predicted by sampling/deliberative theories of decision-making), or more slowly varying over time (as would be predicted by drift diffusion or integrate-to-threshold theories).  Ultimately, *how* the brain area of interest comes to represent reward in that way can only be understood by studying the inputs to that area, the connectivity within that area and its inputs, along with what information those inputs are representing and when.
