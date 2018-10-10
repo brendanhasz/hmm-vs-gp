@@ -1,7 +1,6 @@
 data {
     int<lower=1> N;      //number of datapoints
     real x[N];           //x values
-
     real<lower=0> rho;   //length scale
     real<lower=0> alpha; //marginal/output/signal standard deviation
     real<lower=0> sigma; //noise standard deviation

@@ -1,12 +1,12 @@
 ---
-title: "Bayesian Modelling of Gaussian Processes and Hidden Markov Models with Stan"
+title: "Bayesian Modeling of Gaussian Processes and Hidden Markov Models with Stan"
 output:
   html_document:
     toc: yes
     self_contained: no
 ---
 
-This post is about how to build Bayesian models of Gaussian processes and hidden Markov models in R using [Stan](http://mc-stan.org/), how to fit them to data, and how to comapre those fits to see which model is more likely to explain the data.  But first - who cares which of those models best explains some data?
+This post is about how to build Bayesian models of Gaussian processes and hidden Markov models in R using [Stan](http://mc-stan.org/), how to fit them to data, and how to comapre those fits to see which model is more likely to explain the data.  But first we'll get into the background - who cares which of those models best explains some data?
 
 TOC
 
@@ -22,11 +22,9 @@ However, there are other types of decisions besides purely perceptual ones.  Val
 
 Some people have suggested that despite the difference in where the evidence is coming from, value-based decisions might also be made in the brain using this accumulation-to-threshold algorithm.  However, others have hypothesized that instead the brain may simply sample the options serially, and choose one after enough sampling.  This makes sense intuitively - if you're deciding between two products to buy, it seems like you consider one option, then the other, and then maybe consider the first option again, etc, until you've decided which option to take.  The accumulation-to-threshold algorithm implies that both options are considered simultaneously!
 
-To determine if a brain area is sampling from options or integrating to a threshold, we can record neural activity from that area, and decode the probability that the brain area is representing one option over the other.  If the probability starts somewhere in the middle and  
+To determine if a brain area is sampling from options or more slowly accumulating evidence, we can record neural activity from that area, and decode the probability that the brain area is representing one option over the other as a subject is making a decision between those two options.  If that probability starts somewhere in the middle and slowly moves to favor one option, then it is more likely that the brain area is acting as an evidence accumulator and not sampling.  On the other hand, if the decoded probability flickers back and forth between options, it is more likely that the brain area is sampling.
 
-https://en.wikipedia.org/wiki/Gaussian_process
-
-https://en.wikipedia.org/wiki/Hidden_Markov_model
+Of course, we can't just take a look at the decoded probability traces and decide which one it "looks like!"  To quantify how sampling-like or accumulation-like the neural dynamics are, we will fit two different models to the neural activity and see which one best matches the neural activity.  As an evidence-accumulation-like model, we'll use a [Gaussian process](https://en.wikipedia.org/wiki/Gaussian_process), which assumes the dependent variable is changing slowly over time.  For a sampling-like model, we'll use a [hidden Markov model](https://en.wikipedia.org/wiki/Hidden_Markov_model), which assumes the dependent variable depends on the current "hidden state", which can change instantaneously between timesteps.
 
 
 ## Setup 
@@ -59,21 +57,151 @@ color_scheme_set("red")
 
 ## Gaussian Processes
 
-TODO: intro to GPs, why we want to use them, assume slowly moving, etc
-
-The first model we'll be fitting is a Gaussian Process.  These 
+The first model we'll be fitting is a Gaussian process.  These models rely on the assumption that the dependent variable (y) at a given independent variable value (in our case, time) will be more similar to the y-value at timepoints nearby.  They also assume that the distribution of y values is a Gaussian distribution.  We can use a Gaussian process to model how the probability of an option, as decoded from neural activity, changes over time.
 
 
+### Vanilla Gaussian Process
 
-### The Math
+The most confusing part about Gaussian processes (in my opinion) is that instead of thinking of your data as $N$ datapoints which have $y$ values in 1-dimensional space, you instead need to think of having a *single* datapoint which has a $y$ value in $N$-dimensional space.  To visualize this, let's suppose we have just 2 datapoints - the first with a $y$ value of $1$, and the second with a $y$ value of $1.5$:
 
-TODO: intro/math to GPs, but we have values between 0 and 1, not otherwise, so we need to use the logit link function, and therefore we're going to be thinking of our data as coming from a multivariate logistic-normal distribution (but with *sigmoidal* elements, *not* a simplex, i.e. all the elements in y don't sum to 1) and so mathematically it's the same as logit-ing your x values, sampling from a normal distribution in infinity space w/ those transformed values, and then applying the scale
+```{r, dev='svg'}
+point_one = data.frame(x=c(1), y=c(1))
+point_two = data.frame(x=c(2), y=c(1.5))
+ggplot() +
+  geom_point(data=point_one, aes(x=x, y=y), color=c_blue_mid, size=5) +
+  geom_point(data=point_two, aes(x=x, y=y), color=c_mid, size=5) +
+  xlim(0, 3) + ylim(0, 2) +
+  ggtitle('Two Datapoints with 1D y-values')
+```
 
-The logit function is the inverse of the sigmoidal (logistic) function.
+
+We can think of the $y$ values of these two datapoints as being a single point in 2-dimensional space, where the value in the first dimension is $1$, and the value in the second dimension is $1.5$:
+
+```{r, dev='svg'}
+one_point = data.frame(x=c(1), y=c(1.5))
+ggplot(one_point) +
+  geom_vline(xintercept=1, color=c_blue_light, size=1) +
+  geom_hline(yintercept=1.5, color=c_light, size=1) +
+  geom_point(aes(x=x, y=y), color='black', size=5) +
+  xlim(0, 2) + ylim(0, 2) +
+  xlab('y value of first datapoint') +
+  ylab('y value of second datapoint') +
+  ggtitle('One Datapoint with 2D y-value')
+```
+
+Gaussian processes constrain points with similar $x$ values to have similar $y$ values by modeling them as being a single $N$-dimensional datapoint drawn from a Gaussian (normal) distribution with a given covarance structure.  This "covariance structure" is defined by a covariance matrix $\Sigma$, which depends on the $x$ values.  So, we can think of our $y$ values as being drawn from a multivariate normal distribution with covariance matrix $\Sigma$ (and also some mean $\mu$, but here we'll always use 0 for the mean).
+
+$$
+\mathbf{y} \sim \mathcal{N}(\mu=0, \Sigma)
+$$
+
+And remember, the $\mathbf{y}$ in the above equation is a *single* point in $N$-dimensional space representing the $y$ values of all our datapoints, not point(s) in 1-dimensional space.
+
+If the distance between the $x$ values of two points is low, then the Gaussian distribution has a high covariance between those two dimensions, and the two points' $y$ values are also likely to be similar:
+
+```{r, dev='svg'}
+sigma = matrix(c(1,0.8,0.8,1), nrow=2)
+data.grid = expand.grid(x=seq(-3, 3, length.out=200), y=seq(-3, 3, length.out=200))
+q.samp = cbind(data.grid, prob=mvtnorm::dmvnorm(data.grid, sigma=sigma))
+ggplot() + 
+  geom_contour(data=q.samp, aes(x=x, y=y, z=prob), size=1, binwidth=0.08, color='black') +
+  geom_vline(xintercept=1, color=c_blue_light, size=1) +
+  geom_hline(yintercept=1.5, color=c_light, size=1) +
+  geom_point(data=one_point, aes(x=x, y=y), color='black', size=5) +
+  xlab('y value of first datapoint') +
+  ylab('y value of second datapoint') +
+  ggtitle('Joint probability distribution with high covariance')
+```
+
+If we take a vertical slice through this distribution (vertical line above), we can see that, given the value of the first datapoint, the probability of the value of the 2nd datapoint is pulled toward the value of the first datapoint.
+
+```{r, dev='svg'}
+x = cbind(rep(1, 300), seq(-2.5, 2.5, l=300))
+p = mvtnorm::dmvnorm(x, sigma=sigma)
+ggplot(data.frame(x=x, p=p)) + 
+  geom_line(aes(x=x[,2], y=p), size=2, color=c_mid) +
+  geom_vline(xintercept=1.5, color=c_light, size=1) +
+  geom_vline(xintercept=1, color=c_blue_light, size=1) +
+  annotate("text", label="1st datapoint", x=0.9, y=0.02, angle=90) +
+  annotate("text", label="2nd datapoint", x=1.4, y=0.02, angle=90) +
+  xlab('y value of second datapoint') +
+  ylab('Probability') +
+  ggtitle('Probability of 2nd datapoint given 1st')
+```
+
+And if we take a horizontal slice through this distribution (horizontal line in the joint distribution plot above), we can see that, given the value of the second datapoint, the probability of the value of the first datapoint is pulled toward the value of the second datapoint.
+
+```{r, dev='svg'}
+x = cbind(seq(-2.5, 2.5, l=300), rep(1.5, 300))
+p = mvtnorm::dmvnorm(x, sigma=sigma)
+ggplot(data.frame(x=x, p=p)) + 
+  geom_line(aes(x=x[,1], y=p), size=1, color=c_blue_mid) +
+  geom_vline(xintercept=1.5, color=c_light, size=1) +
+  geom_vline(xintercept=1, color=c_blue_light, size=1) +
+  annotate("text", label="1st datapoint", x=0.9, y=0.02, angle=90) +
+  annotate("text", label="2nd datapoint", x=1.4, y=0.02, angle=90) +
+  xlab('y value of first datapoint') +
+  ylab('Probability') +
+  ggtitle('Probability of 1st datapoint given 2nd')
+```
+
+On the other hand, if the $x$ values of two datapoints are distant, then a Gaussian process forces there to be a low covariance between the two dimensions (we'll see how below), and the value of one datapoint won't depend very much on the value of the other.
+
+```{r, dev='svg'}
+m = c(0, 0)
+sigma = matrix(c(1,0,0,1), nrow=2)
+data.grid = expand.grid(x=seq(-3, 3, length.out=200), y=seq(-3, 3, length.out=200))
+q.samp = cbind(data.grid, prob=mvtnorm::dmvnorm(data.grid, mean=m, sigma=sigma))
+ggplot() + 
+  geom_contour(data=q.samp, aes(x=x, y=y, z=prob), size=1, binwidth=0.04, color=c_blue_mid) +
+  geom_point(data=one_point, aes(x=x, y=y), color='black', size=5) +
+  xlab('y value of first datapoint') +
+  ylab('y value of second datapoint') +
+  ggtitle('Joint probability distribution with low covariance')
+```
+
+The covariance structure of the Gaussian distribution we've been talking about is defined by a covariance matrix $\Sigma$.  The covariance matrix is just a square matrix, where the value at row $i$ and column $j$ is computed using a covariance function given the $x$ values of the $i$-th and $j$-th datapoints.
+
+$$
+\Sigma_{i,j} = K(x_i,x_j)
+$$
+
+This covariance function (or "kernel") is just a function that takes the $x$ values of two points, and returns a single value.  With basic covariance functions, this value is large if the two $x$ values are close together, and small when they're far apart (although there are other types of covariance functions which don't).  we'll use the "squared exponential" kernel (aka the Gaussian kernel or the radial basis function kernel).  For two data points which have $x$ values $x_i$ and $x_j$, the squared exponential kernel value between them is:
+
+$$
+K(x_i,x_j) = \alpha^2 \exp \left( - \frac{(x_i-x_j)^2}{2\rho^2} \right) + \sigma^2 \delta_{ij}
+$$
+
+This is just a Gaussian function where the distance between the two $x$ values is the dependent variable.
+
+```{r, dev='svg'}
+cov_exp_quad <- function(x) exp(-x^2/2)
+plot(cov_exp_quad, -4, 4, n=300, xlab=expression(x[i] - x[j]), 
+     ylab=expression(K( x[i], x[j] )),
+     main="Squared Exponential Kernel",
+     yaxt='n', bty='n', lwd=3, col=c_blue_mid)
+```
+
+The $\alpha$ and $\rho$ parameters in the kernel function are two hyperparameters of the Gaussian process. 
+
+$\alpha^2$ is the signal variance (or "output" variance), because it controls how distant $y$ values are likely to fall from 0 by scaling the value of all elements of the covariance matrix.  A small $\alpha$ value will yield a Gaussian process which hovers close to 0 (assuming you're using 0 as your mean function, as we are).  A larger $\alpha$ value will yield a Gaussian process which can take values further from 0.
+
+$\rho$ is the length-scale parameter, because it controls how quickly the $y$ values can change over time.  Smaller values of $\rho$ yield Gaussian processes whose $y$ values change quickly over time, while larger values of $\rho$ yield Gaussian processes with $y$ values which change more slowly with time.
+
+Finally, the $\sigma^2$ term of the kernel function is the noise standard deviation - because we're assuming there is some noise associated with our observations.  $\delta_{ij}$ takes the value $1$ when $i$ and $j$ are the same, and 0 otherwise - so we're just adding $\sigma^2$ to the diagonal of $\Sigma$.
+
+
+### Bounded Gaussian Process
+
+So far we've assumed that the dependent variable can take *any* value!  This isn't the case when we're looking at the probability of a brain area representing an option - the probability value must be between 0 and 1.
+
+To account for this, we can pass our probability values through the [logit function](https://en.wikipedia.org/wiki/Logit), which transforms values between 0 and 1 to values between $-\infty$ and $\infty$.  This "logit" function is the inverse of the sigmoidal (logistic) function.
 
 $$
 \text{logit}(x) = \log \left( \frac{x}{1-x} \right)
 $$
+
+Then, we can perform our Gaussian process regression on the transformed data.  However, we can't just transform the input values without transforming the probability density appropriately!  Because we've logit-transformed our values to be between 0 and 1, our Gaussian process is now modeling points as being drawn from a multivariate [logit-normal distribution](https://en.wikipedia.org/wiki/Logit-normal_distribution), instead of a normal multivariate normal distribution. (specifically a logit-normal distribution in the case of sigmoidal elements, not simplex elements).
 
 A multivariate logistic normal distribution is defined between 0 and 1 in each of $N$ dimensions,
 
@@ -105,7 +233,7 @@ $$
 
 Without this scaling factor, we would be logit-transforming the $x$ values without appropriately scaling the probability density to compensate, and the probability density wouldn't integrate to 1!
 
-For more information on Gaussian processes in general, Carl Rasmussen and Christopher Williams have written a [great textbook](http://www.gaussianprocess.org/gpml/) on GPs which is free.
+For more information on Gaussian processes in general, Carl Rasmussen and Christopher Williams have written a [great textbook](http://www.gaussianprocess.org/gpml/) on Gaussian processes which is free.
 
 ### Priors
 
@@ -156,9 +284,12 @@ plot(sigma_prior, 0, 6, n=300, xlab='Sigma', ylab='',
       yaxt='n', bty='n', lwd=3, col=c_blue_mid)
 ```
 
+
 ### Generating Data from a Gaussian Process
 
-TODO: talk about stan file to generate data
+We'll be using [Stan](http://mc-stan.org/) to generate and fit Bayesian models of Gaussian processes and, later, hidden Markov models.  Stan is a Bayesian modeling package which allows us to use the Stan language to describe a model, and then fit the model to data from R (Stan also has interfaces to Python, Matlab, etc).
+
+A Stan program consists of several blocks.  The first block describes what input data the model can expect, and the second block contains how to transform to that data before using it to fit or generate data.  The "parameters" block contain a list of free parameters of the model, and the "model" block contains how to compute the posterior probability of the model given parameter values and the data.  For now, we're just generating data (and not fitting the model to data) so we'll leave those blocks empty.  Finally, the "generated quantities" block computes output data.
 
 ```{r}
 writeLines(readLines("simulate_lgp.stan"))
@@ -172,7 +303,7 @@ N = 100
 x = seq(0, 5, l=N)
 ```
 
-We will also set the hyperparameters of the gaussian process.
+We'll also set the hyperparameters of the gaussian process.
 
 ```{r}
 # Parameters
@@ -209,11 +340,13 @@ The line above is the latent function which was generated, and the dots are the 
 
 ### Fitting a Gaussian Process
 
-Now that we've generated some data from a Gaussian process, we can attempt to fit a Gaussian process model to that data.  We'll use a separate Stan model, one which fits the parameters of the model to the data, instead of generating data from the parameters.
+Now that we've generated some data from a Gaussian process, we can attempt to fit a Gaussian process model to that data.  We'll use a separate Stan model, one which fits the parameters of the model to the data, instead of generating data from the parameters.  That means this time our data block will only contain the data (and not the desired parameter values, because we're fitting those), the parameter block will contain the free parameters of the model, and the model block will compute the posterior probability of the model given parameter values and the data.  In Stan, "target" is a variable which stores the log posterior probability, so we'll keep adding to it values which contribute to the posterior.
 
 ```{r}
 writeLines(readLines("lgp.stan"))
 ```
+
+(Side note: it's not necessary to perform the Cholesky decomposition in order to fit the model here - you can just draw `y` from a multivariate normal distribution with covariance matrix `K`.  The fit will actually run faster that way.  However I've done the Cholesky decomposition because it can be used to find the predictive mean and variance, as is done in [kridging](https://en.wikipedia.org/wiki/Kriging).  Also, for only 100 datapoints it doesn't take all that much longer anyway, even with the decomposition.)
 
 Let's fit the model to our generated data.
 
@@ -310,20 +443,21 @@ abline(v=sigma, col=c_dark, lwd=3)
 
 The true parameter values are all within the bulk of the posterior, meaning we were able to successfully recover the true parameters!
 
+
 ## Hidden Markov Models
 
-TODO: intro
+The other model we'll be fitting is a hidden Markov model.  In contrast to the Gaussian process, which assumed the $y$ value was changing slowly over time, hidden Markov models assume that the process generating the data is switching - instantaneously - between states.  The states are "hidden", in that we don't know for sure what state the system is in at any given time, but each state has a unique observation pattern associated with it.  In our case, we're concerned with the decoded probability flickering back and forth between near-0 and near-1, as would be expected if the brain area we're decoding from is sampling options.  So, our hidden Markov model will have 2 states, and the chance of observing a $y$ value near $0$ will be high in one state, and low in the other. 
+
 
 ### The Math
 
-Our model will have two hidden states ($N=2$).  This means that our model has two free parameters which control the transition probabilities $\phi$.  The probability of transitioning from state $i$ to state $j$ is $\phi_{i,j}$.  In our Stan model, we'll fit the "recurrent" transition probabilities - that is, the probability that the hidden state at the current timestep will be the same as the last timestep.  We don't have to fit the non-recurrent transition probabilities because they form a simplex with the recurrent transition probabilities (that is, with only two states, the non-recurrent transition probabilities *have* to be $1$ minus the recurrent transition probabilities, and vice-versa, since the sum of the two must sum to $1$).  So, the two free parameters which control the transition probabilities are:
+Our hidden Markov model will have two hidden states ($N=2$).  This means that our model has two free parameters which control the transition probabilities $\phi$.  The probability of transitioning from state $i$ to state $j$ is $\phi_{i,j}$.  In our Stan model, we'll fit the "recurrent" transition probabilities - that is, the probability that the hidden state at the current timestep will be the same as the last timestep.  We don't have to fit the non-recurrent transition probabilities because they form a simplex with the recurrent transition probabilities (that is, with only two states, the non-recurrent transition probabilities *have* to be $1$ minus the recurrent transition probabilities, and vice-versa, since the sum of the two must sum to $1$).  So, the two free parameters which control the transition probabilities are:
 
 $$
 \phi_{i,i} ~ \text{for} ~ i \in \{1,2\}
 $$
 
-We model the probability of an observation given the state as a beta distribution.  However, for each hidden state, one parameter of the distribution is fixed at $1$, and the other parameter is free.  This gives us two additional parameters ($\theta_1$ and $\theta_2$) which control the observation probabilities corresponding to the hidden states.  So for the first state $x_1$,
-
+We model the probability of observing a certain value for $y$, given the current hidden state, as a beta distribution.  However, for each hidden state, one parameter of the distribution is fixed at $1$, and the other parameter is free.  This gives us two additional parameters ($\theta_1$ and $\theta_2$) which control the observation probabilities corresponding to the hidden states.  So for the first state $x_1$,
 
 $$
 y|x_1 \sim \text{Beta}(1, \theta_1)
@@ -335,9 +469,37 @@ $$
 y|x_2 \sim \text{Beta}(\theta_2, 1)
 $$
 
-TODO: explain why and plot of the beta dist for each state
+(Side note: we don't *have* to use a beta distribution for our observation model, we just need a distribution bounded between 0 and 1, which is greater towards one extreme than the other.  We could also have used a 1-dimensional logit-normal distribution, and constrained $\mu$ to be $>0$ for one state and $<0$ for the other state.  I decided to use a beta distribution just because it's simpler - there's only 1 free parameter here per hidden state.)
+
+The reason the beta distribution has flipped parameters for one state (that is, $\alpha=1,\beta=\theta_1$ for one state and $\alpha=\theta_2,\beta=1$ for the other) is so the first state will always correspond to $y$ values which are closer to 0, and the second state will always correspond to $y$ values which are closer to 1.  If we allow both parameters of the beta distribution to be free for both states, our resulting posterior distributions will be bimodal.  This is because the first state could correspond to low $y$ values, and the second to high $y$ values, or vice versa - both would be equally likely!
+
+Setting one parameter of the beta distribution to $1$ also ensures that the resulting beta distributions are monotonic - that is, the probability value is always greater towards the corresponding state's extreme (either 0 or 1).  Plotted below are these beta distributions with different values of $\theta$.  The blue lines correspond to the first state, and the red lines to the second state.  Darker shades indicate larger values of $\theta$.
+
+```{r, dev='svg'}
+x = seq(0, 1, l=300)
+df = data.frame(x = x,
+                s11 = dbeta(x, 1, 1.2),
+                s12 = dbeta(x, 1, 3),
+                s13 = dbeta(x, 1, 5),
+                s21 = dbeta(x, 1.2, 1),
+                s22 = dbeta(x, 3, 1),
+                s23 = dbeta(x, 5, 1))
+ggplot(df) + 
+  geom_line(aes(x=x, y=s11), color=c_blue_light, size=1) +
+  geom_line(aes(x=x, y=s12), color=c_blue_mid, size=1) +
+  geom_line(aes(x=x, y=s13), color=c_blue_dark, size=1) +
+  geom_line(aes(x=x, y=s21), color=c_light, size=1) +
+  geom_line(aes(x=x, y=s22), color=c_mid, size=1) +
+  geom_line(aes(x=x, y=s23), color=c_dark, size=1) + 
+  xlab('y value') +
+  ylab('Observation Probability') +
+  ggtitle('Observation Probabilities for each state, given different parameters')
+
+```
+
 
 TODO: explain how you compute the prob marginalized over hidden states w/ the forward algorithm
+
 
 ### Priors
 
@@ -348,8 +510,6 @@ $$
 $$
 
 This results in a distribution which has zero density $<1$, and low density at higher values.
-
-NOTE: could also use a log-Cauchy distribution ($\theta \sim 1/(log(x)^2+1)$)?  Same bounds, has ridiculously long tail on the positive end...
 
 ```{r, dev='svg'}
 theta_prior <- function(x) dgamma(x-1, 2, 1/2)
@@ -378,7 +538,7 @@ plot(trans_prior, 0, 1, n=300, xlab='Phi_{i,i}', ylab='',
 
 ### Generating Data from a Hidden Markov Model
 
-TODO: talk about stan file to generate data
+Now we'll build a Stan routine to generate data from a hidden Markov model with certain parameters.  In the generated quantities block, we'll simulate the hidden Markov model and generate our data.  We'll start in a random hidden state, and transition to a different state (or the same state) at each time step randomly according to the transition probabilities. At each timestep, we'll generate a $y$ value from the observation parameters of that state.
 
 ```{r}
 writeLines(readLines("simulate_hmm.stan"))
@@ -625,8 +785,8 @@ cat(sprintf("Log marginal likelihood of HMM fit to GP-generated data: %0.3g\n", 
 
 ## Conclusion
 
-By fitting both the Gaussian process model and the hidden Markov model to neural data, we can use bride sampling to find which model is more likely to explain the neural activity.  Of course that will have to happen in a paper and not in a blog post.
+By fitting both the Gaussian process model and the hidden Markov model to neural data, we can use bride sampling to find which model is more likely to explain the neural activity.  Of course that will have to happen in a paper and not in a blog post!
 
-There are a few other details we need to worry about when applying these models to real data.  First, the Stan models above assumed a single process evolving over a short period of time.  However, we're studing neural activity during tasks which have repeated trials.  So, in order to evaluate the model likelihoods over all trials, we have to alter the Stan code to sum the log probability over all trials.  Also, with real data we have multiple subjects, which means we have to build a multilevel model which allows the parameters to vary slightly between subjects (see my [previous post](https://brendanhasz.github.io/2018/06/27/bayesian-correlations.html) about multilevel modelling with Stan).
+There are a few other details we need to worry about when applying these models to real data.  First, the Stan models above assumed a single process evolving over a short period of time.  However, we're studing neural activity during tasks which have repeated trials.  So, in order to evaluate the model likelihoods over all trials, we have to alter the Stan code to sum the log probability over all trials.  Also, with real data we have multiple subjects, which means we have to build a multilevel model which allows the parameters to vary slightly between subjects (see my [previous post](https://brendanhasz.github.io/2018/06/27/bayesian-correlations.html) about multilevel modeling with Stan).
 
 It's also important to realize that even if the Bayes factor favors one of these models over the other, that doesn't imply that model explains how the neural activity is being generated.  Rather, it just shows that the dynamics of the neural activity better match one model than the other.  The Bayes factor between the Gaussian process and the hidden Markov model will only tell us whether the neural representation of reward appears to be flicking back and forth between options (as would be predicted by sampling/deliberative theories of decision-making), or more slowly varying over time (as would be predicted by drift diffusion or integrate-to-threshold theories).  Ultimately, *how* the brain area of interest comes to represent reward in that way can only be understood by studying the inputs to that area, the connectivity within that area and its inputs, along with what information those inputs are representing and when.

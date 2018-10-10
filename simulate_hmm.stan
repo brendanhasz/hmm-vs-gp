@@ -8,7 +8,7 @@ data {
 }
 
 transformed data { 
-  real thetas[2,2]; //just so we don't need if/elses in generated quantities...
+  real thetas[2,2]; //observation beta distribution parameters
   thetas[1,1] = 1;
   thetas[1,2] = theta[1];
   thetas[2,1] = theta[2];
