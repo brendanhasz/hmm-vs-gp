@@ -6,7 +6,7 @@ output:
     self_contained: no
 ---
 
-This post is about how to build Bayesian models of Gaussian processes and hidden Markov models in R using [Stan](http://mc-stan.org/), how to fit them to data, and how to comapre those fits to see which model is more likely to explain the data.  But first we'll get into the background - who cares which of those models best explains some data?
+This post is about how to build Bayesian models of Gaussian processes and hidden Markov models in R using [Stan](http://mc-stan.org/), how to fit them to data, and how to compare those fits to see which model is more likely to explain the data.  But first we'll talk background - who cares which of those models best explains some data?
 
 TOC
 
@@ -145,7 +145,7 @@ ggplot(data.frame(x=x, p=p)) +
   ggtitle('Probability of 1st datapoint given 2nd')
 ```
 
-On the other hand, if the $x$ values of two datapoints are distant, then a Gaussian process forces there to be a low covariance between the two dimensions (we'll see how below), and the value of one datapoint won't depend very much on the value of the other.
+On the other hand, if the $x$ values of two datapoints are distant, then a Gaussian process forces there to be a low covariance between the two dimensions (we'll see how below), and the value of one datapoint won't depend very much on the value of the other.  That is, the marginal probability of one datapoint given the value of the other will just be a normal distribution centered at 0, and won't be affected by the value of the other datapoint.
 
 ```{r, dev='svg'}
 m = c(0, 0)
@@ -195,7 +195,7 @@ Finally, the $\sigma^2$ term of the kernel function is the noise standard deviat
 
 So far we've assumed that the dependent variable can take *any* value!  This isn't the case when we're looking at the probability of a brain area representing an option - the probability value must be between 0 and 1.
 
-To account for this, we can pass our probability values through the [logit function](https://en.wikipedia.org/wiki/Logit), which transforms values between 0 and 1 to values between $-\infty$ and $\infty$.  This "logit" function is the inverse of the sigmoidal (logistic) function.
+To account for this, we can pass our probability values (our $y$ values) through the [logit function](https://en.wikipedia.org/wiki/Logit), which transforms values between 0 and 1 to values between $-\infty$ and $\infty$.  This "logit" function is the inverse of the sigmoidal (logistic) function.
 
 $$
 \text{logit}(x) = \log \left( \frac{x}{1-x} \right)
@@ -346,7 +346,7 @@ Now that we've generated some data from a Gaussian process, we can attempt to fi
 writeLines(readLines("lgp.stan"))
 ```
 
-(Side note: it's not necessary to perform the Cholesky decomposition in order to fit the model here - you can just draw `y` from a multivariate normal distribution with covariance matrix `K`.  The fit will actually run faster that way.  However I've done the Cholesky decomposition because it can be used to find the predictive mean and variance, as is done in [kridging](https://en.wikipedia.org/wiki/Kriging).  Also, for only 100 datapoints it doesn't take all that much longer anyway, even with the decomposition.)
+(Side note: it's not necessary to perform the Cholesky decomposition in order to fit the model here - you can just draw `y` from a multivariate normal distribution with covariance matrix `K`.  The fit will actually run faster that way.  However I've done the Cholesky decomposition because it can be used to find the predictive mean and variance, as is done in [kridging](https://en.wikipedia.org/wiki/Kriging).  We're not actually doing that here, because we're primarily interested in model comparison, but for most applications you'd want the predictive mean and variance.  Also, for only 100 datapoints this method doesn't take all that much longer anyway, even with the decomposition.)
 
 Let's fit the model to our generated data.
 
@@ -457,7 +457,7 @@ $$
 \phi_{i,i} ~ \text{for} ~ i \in \{1,2\}
 $$
 
-We model the probability of observing a certain value for $y$, given the current hidden state, as a beta distribution.  However, for each hidden state, one parameter of the distribution is fixed at $1$, and the other parameter is free.  This gives us two additional parameters ($\theta_1$ and $\theta_2$) which control the observation probabilities corresponding to the hidden states.  So for the first state $x_1$,
+We model the probability of observing a certain value for $y$, given the current hidden state, as a beta distribution.  I'll refer to this as the "observation model", because it's the part of the model which controls how the hidden states relate to the outcomes ($y$ values) we observe.  However, for each hidden state, one parameter of the distribution is fixed at $1$, and the other parameter is free.  This gives us two additional parameters ($\theta_1$ and $\theta_2$) which control the observation probabilities corresponding to the hidden states.  So for the first state $x_1$,
 
 $$
 y|x_1 \sim \text{Beta}(1, \theta_1)
@@ -469,7 +469,7 @@ $$
 y|x_2 \sim \text{Beta}(\theta_2, 1)
 $$
 
-(Side note: we don't *have* to use a beta distribution for our observation model, we just need a distribution bounded between 0 and 1, which is greater towards one extreme than the other.  We could also have used a 1-dimensional logit-normal distribution, and constrained $\mu$ to be $>0$ for one state and $<0$ for the other state.  I decided to use a beta distribution just because it's simpler - there's only 1 free parameter here per hidden state.)
+(Side note: we don't *have* to use a beta distribution for our observation model, we just need a distribution bounded between 0 and 1, which is greater towards one extreme than the other.  We could also have used a 1-dimensional logit-normal distribution, and constrained $\mu$ to be $>0$ for one state and $<0$ for the other state.  I decided to use a beta distribution just because it's simpler - there's only 1 free parameter here per hidden state, whereas a logit-normal distribution would have two.)
 
 The reason the beta distribution has flipped parameters for one state (that is, $\alpha=1,\beta=\theta_1$ for one state and $\alpha=\theta_2,\beta=1$ for the other) is so the first state will always correspond to $y$ values which are closer to 0, and the second state will always correspond to $y$ values which are closer to 1.  If we allow both parameters of the beta distribution to be free for both states, our resulting posterior distributions will be bimodal.  This is because the first state could correspond to low $y$ values, and the second to high $y$ values, or vice versa - both would be equally likely!
 
@@ -497,8 +497,13 @@ ggplot(df) +
 
 ```
 
+Finally, to compute the probability of the model over all possible sequences of hidden states (marginalize over the hidden states), we will use the [forward algorithm](https://en.wikipedia.org/wiki/Forward_algorithm).  A hidden Markov model assumes that the state at a given timepoint only affects the probability of the hidden state at the *next* timepoint (and not states at further timepoints).  Therefore, we can compute the probability of being in the current state, given *any* previous sequence of hidden states, in a recursive manner.  Suppose we've computed the probability of being in state $1$ at timepoint $t$ given any previous sequence of hidden states (the "marginal probability", let's call it $\gamma(t,1)$), and the same for state $2$ ($gamma(t,2)$).  Then, we can compute the probability of being in state $i$ at time $t+1$ with just the previous marginal probabilities ($gamma(t,1)$ and $gamma(t,2)$), the transition probabilities ($\phi$), and the observation probabilities ($p(y|x_j)$, which we defined earlier in terms of beta distributions).
 
-TODO: explain how you compute the prob marginalized over hidden states w/ the forward algorithm
+$$
+\gamma(t,i) = p(y_t | x_t) \sum_{j \in \{1, 2\}} \phi_{j,i} ~ \gamma(t-1,j)
+$$
+
+The sum above is over possible states $j$ (so only $1$ and $2$ in our case).  This equation is just computing the probability of arriving at state $i$ from any other state, times the probability of our observation given that we're in that hidden state.
 
 
 ### Priors
