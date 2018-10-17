@@ -22,15 +22,12 @@ parameters {
 }
 
 model {
-  // Decomposed covariance matrix (assume x same for each trial)
+  // Covariance matrix (assume x same for each trial)
   // NOTE: this could be optimized, each off-diag will be identical w/ 
   // identically spaced x vals. So you really only need to do evaluate
   // the kernel function N/2 times, not N^2/2 times.
-  // Custom c++ function time? :D
-  // Though really the cholesky decomp is the bottleneck here...
   matrix[N, N] K = cov_exp_quad(x, alpha, rho) + diag;
-  matrix[N, N] L_K = cholesky_decompose(K);
-  
+
   // Priors
   target += inv_gamma_lpdf(rho | 2, 0.5);
   target += normal_lpdf(alpha | 0, 2) + log(2); //half-normal dists
@@ -38,8 +35,8 @@ model {
   
   // Accumulate evidence over trials
   for (i in 1:M)
-    target += multi_normal_cholesky_lpdf(logit(y[i]) | mu, L_K);
-  
+    target += multi_normal_lpdf(logit(y[i]) | mu, K);
+    
   // Add scales such that likelihood integrates to 1 over y
   target += sum(ln_scale);
   
