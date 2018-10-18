@@ -6,9 +6,6 @@ output:
     toc: yes
 ---
 
-This post is about how to build Bayesian models of Gaussian processes and hidden Markov models in R using [Stan](http://mc-stan.org/), how to fit them to data, and how to compare those fits to see which model is more likely to explain the data.  But first we'll talk background - who cares which of those models best explains some data?
-
-TOC
 
 ## Background
 
@@ -40,6 +37,7 @@ library(ggplot2)
 library(bayesplot)
 library(invgamma)
 library(bridgesampling)
+library(RColorBrewer)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 seed = 723456
@@ -828,6 +826,70 @@ And the log marginal likelihood of the hidden Markov model was greater when fit 
 cat(sprintf("Log marginal likelihood of HMM fit to HMM-generated data: %0.3g\n", bridge_hmm_hmm$logml))
 cat(sprintf("Log marginal likelihood of HMM fit to GP-generated data: %0.3g\n", bridge_hmm_gp$logml))
 ```
+
+
+## Stan models for multiple trials
+
+The Stan models we've created so far are only able to handle a single time series.  But we have multiple time series: one for each pass through the choice point.  That is, one per trial.  To handle multiple trials, we have to create modified Stan models which accumulate the contribution of each trial by summing the log likelihoods of each trial.  Here's Stan code for a Gaussian process which can handle multiple trials:
+
+```{r}
+writeLines(readLines("lgp_multitrial.stan"))
+```
+
+And Stan code for a hidden Markov model which can handle multiple trials:
+
+```{r}
+writeLines(readLines("hmm_multitrial.stan"))
+```
+
+Let's generate some test data which contiains multiple time series (to emulate data on multiple trials).
+
+```{r}
+# Data
+N = 100
+Nt = 10 #number of trials
+x = seq(0, 5, l=N)
+
+# Parameters
+rho = 0.5
+alpha = 2
+sigma = 0.3
+
+# Arrays to store generated data
+f = matrix(data=NA, nrow=Nt, ncol=N)
+y = matrix(data=NA, nrow=Nt, ncol=N)
+xs = matrix(x, nrow=Nt, ncol=N, byrow=TRUE)
+
+# Simulate
+sim_params = list(N=N, x=x, rho=rho, alpha=alpha, sigma=sigma)
+for (trial in 1:Nt){
+  sim_gp = stan(file='simulate_lgp.stan', data=sim_params, iter=1, 
+                chains=1, seed=trial*100, algorithm="Fixed_param")
+  f[trial,] = extract(sim_gp)$f
+  y[trial,] = extract(sim_gp)$y
+}
+```
+
+And now we can take a look at all the latent functions we generated (lines)
+
+```{r}
+# Set the palette to something as ungarish as possible...
+palette(brewer.pal(n=10, name="Paired"))
+matplot(t(xs), t(f), type='l', lty=1, lwd=2, 
+        ylim=c(0, 1), xlab='', ylab='')
+par(new=T)
+matplot(t(xs), t(y), type='p', pch=20, 
+        ylim=c(0, 1), xlab='x', ylab='f')
+title('A gaggle of Gaussian processes')
+```
+
+
+## Multilevel Stan models for both multiple subjects and multiple trials
+
+Another problem with the Stan model so far is they only handle a single subject.  We want our models to include mixed effects (inter-subject variablility), and so we'll build multilevel versions of both the Gaussian process and hidden Markov models.
+
+TODO
+
 
 ## Conclusion
 

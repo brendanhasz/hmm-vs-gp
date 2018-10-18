@@ -2,7 +2,7 @@ data {
   int<lower=1> N; //number of datapoints per trial
   int<lower=1> M; //number of trials
   real x[N];      //x values (assume same for each trial)
-  vector<lower=0, upper=1>[N] y[M]; //y values
+  row_vector<lower=0, upper=1>[N] y[M]; //y values
 }
 
 transformed data {
