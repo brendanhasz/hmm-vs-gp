@@ -6,10 +6,8 @@ data {
 }
 
 transformed data {
-  matrix[N, N] diag; //diag matrix with noise std devs
   vector[N] mu;      //mean function
   real ln_scale[M];  //scale for logit normal dists
-  diag = diag_matrix(rep_vector(square(sigma), N));
   mu = rep_vector(0, N);
   for (i in 1:M) 
     ln_scale[i] = -sum(log(y[i])+log(1-y[i])); 
@@ -26,7 +24,8 @@ model {
   // NOTE: this could be optimized, each off-diag will be identical w/ 
   // identically spaced x vals. So you really only need to do evaluate
   // the kernel function N/2 times, not N^2/2 times.
-  matrix[N, N] K = cov_exp_quad(x, alpha, rho) + diag;
+  matrix[N, N] K = cov_exp_quad(x, alpha, rho) + 
+                   diag_matrix(rep_vector(square(sigma), N));
 
   // Priors
   target += inv_gamma_lpdf(rho | 2, 0.5);
