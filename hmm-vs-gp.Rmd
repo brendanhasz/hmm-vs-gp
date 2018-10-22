@@ -1083,16 +1083,24 @@ TODO: Hm. Uh. Or not...
 
 Another problem with the Stan models so far is they only handle a single subject.  We want our models to include mixed effects (that is, account for inter-subject variability).  So, we'll build multilevel versions of both the Gaussian process and hidden Markov models which can handle multiple trials from multiple subjects.
 
+
 ### Gaussian Process
 
 Our basic single-level Gaussian process has three parameters: the length scale ($\rho$), the signal standard deviation ($\alpha$, a.k.a. the marginal or output standard deviation), and the noise standard deviation ($\sigma$).  All three are constrained to be greater than zero.  We'll use a [Gamma distribution](https://en.wikipedia.org/wiki/Gamma_distribution) to model the population distribution for all three parameters.
 
+TODO: the math and model diagram
+
+TODO: show stan routine
 
 
 ### Hidden Markov Model
 
+TODO: the math and model diagram
 
-TODO: show stan routines
+TODO: show stan routine
+
+
+### Validation
 
 TODO: generate data from multiple subjects w/ multiple trials
 
@@ -1101,6 +1109,8 @@ TODO: run the fits
 TODO: check diagnostics of each fit
 
 TODO: ensure you recover correct population params for models fit to themselves
+
+TODO: ensure you recover correct INDIVIDUAL params for models fit to themselves
 
 TODO: ensure bayes factors favor models fit to themselves
 

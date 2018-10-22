@@ -12,25 +12,29 @@ parameters {
   real<lower=1> theta[Ns,2]; //observation distribution params
   
   // Population-level parameters
-  // TODO
+  real<lower=0> phi_a;   //alpha param of phi's population beta dist
+  real<lower=0> phi_b;   //beta param of phi's population beta dist
+  real<lower=0> theta_a; //alpha param of theta's pop. gamma dist
+  real<lower=0> theta_b; //beta param of theta's population gamma dist
+}
+
+transformed parameters {
+  real<lower=0> phi_mu = phi_a/(phi_a+phi_b);//pop mean recursive trans prob
+  real<lower=1> theta_mu = theta_a/theta_b;  //pop mean obs dist param
 }
 
 model {
 
-  // Priors
-  // TODO: PRIORS OVER POP LEVEL PARAMS, NOT SUBJ-LEVEL PARAMS
-  target += gamma_lpdf(theta[1]-1 | 2, 2);
-  target += gamma_lpdf(theta[2]-1 | 2, 2);
-  target += beta_lpdf(phi[1,1] | 1.2, 1.2);
-  target += beta_lpdf(phi[2,2] | 1.2, 1.2);
+  // Priors (on population-level params)
+  target += gamma_lpdf(phi_mu | 1.2, 1.2);
+  target += gamma_lpdf(theta_mu-1 | 2, 2);
   
-  // Multilevel model
-  // TODO: SUBJECT-LEVEL PARAMS DRAWN FROM POP-LEVEL PARAMS
-  for (s in 1:Ns) {
-    phi[s,1,1] ~ this_subj_phi;
-    phi[s,1,2] ~ 1-this_subj_phi; //don't think this line is needed? simplex is constrained so shouldn't contribute twice to log prob?
-  }
-
+  // Subject-level parameters drawn from pop-level distributions
+  target += beta_lpdf(phi[,1,1] | phi_a, phi_b);
+  target += beta_lpdf(phi[,2,2] | phi_a, phi_b);
+  target += gamma_lpdf(theta[,1]-1 | theta_a, theta_b);
+  target += gamma_lpdf(theta[,2]-1 | theta_a, theta_b);
+  
   // Compute the marginal probability over possible sequences
   {
     real acc[2];
