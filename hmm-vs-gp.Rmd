@@ -1,11 +1,9 @@
 ---
 title: "Bayesian Modeling of Gaussian Processes and Hidden Markov Models with Stan"
-output:
-  md_document:
-    variant: markdown_github
+output: 
+  html_document:
     toc: yes
 ---
-
 
 ## Background
 
@@ -1079,11 +1077,20 @@ cat(sprintf("Log marginal likelihood of HMM fit to HMM-generated data: %0.3g\n",
 cat(sprintf("Log marginal likelihood of HMM fit to GP-generated data: %0.3g\n", bridge_hmm_gp$logml))
 ```
 
-TODO: uh, or not...
+TODO: Hm. Uh. Or not...
 
 ## Multilevel Models
 
-Another problem with the Stan model so far is they only handle a single subject.  We want our models to include mixed effects (inter-subject variablility).  So, we'll build multilevel versions of both the Gaussian process and hidden Markov models which can handle multiple trials from multiple subjects.
+Another problem with the Stan models so far is they only handle a single subject.  We want our models to include mixed effects (that is, account for inter-subject variability).  So, we'll build multilevel versions of both the Gaussian process and hidden Markov models which can handle multiple trials from multiple subjects.
+
+### Gaussian Process
+
+Our basic single-level Gaussian process has three parameters: the length scale ($\rho$), the signal standard deviation ($\alpha$, a.k.a. the marginal or output standard deviation), and the noise standard deviation ($\sigma$).  All three are constrained to be greater than zero.  We'll use a [Gamma distribution](https://en.wikipedia.org/wiki/Gamma_distribution) to model the population distribution for all three parameters.
+
+
+
+### Hidden Markov Model
+
 
 TODO: show stan routines
 
@@ -1102,8 +1109,4 @@ TODO: ensure marginal likelihoods are higher for each model when fit to themselv
 
 ## Conclusion
 
-By fitting both the Gaussian process model and the hidden Markov model to neural data, we can use bride sampling to find which model is more likely to explain the neural activity.  Of course that will have to happen in a paper and not in a blog post!
-
-There are a few other details we need to worry about when applying these models to real data.  First, the Stan models above assumed a single process evolving over a short period of time.  However, we're studing neural activity during tasks which have repeated trials.  So, in order to evaluate the model likelihoods over all trials, we have to alter the Stan code to sum the log probability over all trials.  Also, with real data we have multiple subjects, which means we have to build a multilevel model which allows the parameters to vary slightly between subjects (see my [previous post](https://brendanhasz.github.io/2018/06/27/bayesian-correlations.html) about multilevel modeling with Stan).
-
-It's also important to realize that even if the Bayes factor favors one of these models over the other, that doesn't imply that model explains how the neural activity is being generated.  Rather, it just shows that the dynamics of the neural activity better match one model than the other.  The Bayes factor between the Gaussian process and the hidden Markov model will only tell us whether the neural representation of reward appears to be flicking back and forth between options (as would be predicted by sampling/deliberative theories of decision-making), or more slowly varying over time (as would be predicted by drift diffusion or integrate-to-threshold theories).  Ultimately, *how* the brain area of interest comes to represent reward in that way can only be understood by studying the inputs to that area, the connectivity within that area and its inputs, along with what information those inputs are representing and when.
+By fitting both the Gaussian process model and the hidden Markov model to neural data, we can use bride sampling to find which model is more likely to explain the neural activity.  However, it's important to realize that even if the Bayes factor favors one of these models over the other, that doesn't imply that model explains how the neural activity is being generated.  Rather, it just shows that the dynamics of the neural activity better match one model than the other.  The Bayes factor between the Gaussian process and the hidden Markov model will only tell us whether the neural representation of reward appears to be flicking back and forth between options (as would be predicted by sampling/deliberative theories of decision-making), or more slowly varying over time (as would be predicted by drift diffusion or integrate-to-threshold theories).  Ultimately, *how* the brain area of interest comes to represent reward in that way can only be understood by studying the inputs to that area, the connectivity within that area and its inputs, along with what information those inputs are representing and when.  Furthermore, it could very well be that one brain area is sampling, while another (perhaps downstream) brain area is performing integration, given the output value signals of the sampling.
