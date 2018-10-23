@@ -26,7 +26,7 @@ transformed parameters {
 model {
 
   // Priors (on population-level params)
-  target += gamma_lpdf(phi_mu | 1.2, 1.2);
+  target += beta_lpdf(phi_mu | 1.2, 1.2);
   target += gamma_lpdf(theta_mu-1 | 2, 2);
   
   // Subject-level parameters drawn from pop-level distributions

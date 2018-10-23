@@ -1,8 +1,6 @@
 ---
 title: "Bayesian Modeling of Gaussian Processes and Hidden Markov Models with Stan"
-output: 
-  html_document:
-    toc: yes
+output: html_notebook
 ---
 
 ## Background
@@ -1090,12 +1088,16 @@ Our basic single-level Gaussian process has three parameters: the length scale (
 
 TODO: the math and model diagram
 
+![Multilevel Gaussian Process](img/multilevel_gaussian_process.svg)
+
 TODO: show stan routine
 
 
 ### Hidden Markov Model
 
 TODO: the math and model diagram
+
+![Multilevel Hidden Markov Model](img/multilevel_hidden_markov_model.svg)
 
 TODO: show stan routine
 
