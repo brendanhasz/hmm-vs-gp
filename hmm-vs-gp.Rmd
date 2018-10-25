@@ -1079,28 +1079,99 @@ TODO: Hm. Uh. Or not...
 
 ## Multilevel Models
 
-Another problem with the Stan models so far is they only handle a single subject.  We want our models to include mixed effects (that is, account for inter-subject variability).  So, we'll build multilevel versions of both the Gaussian process and hidden Markov models which can handle multiple trials from multiple subjects.
+Another problem with the Stan models so far is they only handle a single subject.  We want our models to include mixed effects (that is, account for inter-subject variability).  So, we'll build multilevel versions of both the Gaussian process and hidden Markov models which can handle multiple trials from multiple subjects.  This "multilevel" model will have a subject level and a population level.  At the subject level, each subject has their own set of parameters, which are used to compute the probability of the data for that subject.  But, each subect's parameters aren't completely independent: at the population level, each subject's paramters are drawn from a population distribution. 
 
 
 ### Gaussian Process
 
-Our basic single-level Gaussian process has three parameters: the length scale ($\rho$), the signal standard deviation ($\alpha$, a.k.a. the marginal or output standard deviation), and the noise standard deviation ($\sigma$).  All three are constrained to be greater than zero.  We'll use a [Gamma distribution](https://en.wikipedia.org/wiki/Gamma_distribution) to model the population distribution for all three parameters.
-
-TODO: the math and model diagram
+Our basic single-level Gaussian process has three parameters: the length scale ($\rho$), the signal standard deviation ($\alpha$, a.k.a. the marginal or output standard deviation), and the noise standard deviation ($\sigma$).  All three are constrained to be greater than zero.  We'll use a [Gamma distribution](https://en.wikipedia.org/wiki/Gamma_distribution) to model the population distribution for all three parameters. Furthermore, we'll put a prior on the means of these population-level distributions which is the same as the priors we were previously using on the parameters themselves (in the single-subject versions of the mdoels).
 
 ![Multilevel Gaussian Process](img/multilevel_gaussian_process.svg)
 
-TODO: show stan routine
+The length scale parameter ($\rho$) for each subject $s$ is drawn from a population gamma distribution with parameters $\alpha=\rho_\alpha$ and $\beta=\rho_\beta$.
+
+$$
+\forall s, ~ \rho_s \sim \text{Gamma}(\rho_\alpha, \rho_\beta)
+$$
+
+The mean of this population distribution is drawn from an inverse gamma distribution with $\alpha=2$ and $\beta=0.5$ (which was the prior on the $\rho$ parameter in the single-subject models).
+
+$$
+\text{E}[\text{Gamma}(\rho_\alpha, \rho_\beta)] = \frac{\rho_\alpha}{\rho_\beta} \sim \text{InvGamma}(2, 0.5)
+$$
+
+The signal standard deviation parameter ($\alpha$) for each subject $s$ is drawn from a population gamma distribution with parameters $\alpha=\alpha_\alpha$ and $\beta=\alpha_\beta$.
+
+$$
+\forall s, ~ \alpha_s \sim \text{Gamma}(\alpha_\alpha, \alpha_\beta)
+$$
+
+The mean of this population distribution is drawn from a half-normal distribution with $\mu=0$ and $\sigma=2$ (which was the prior on the $\alpha$ parameter in the single-subject models).
+
+$$
+\text{E}[\text{Gamma}(\alpha_\alpha, \alpha_\beta)] = \frac{\alpha_\alpha}{\alpha_\beta} \sim \text{HalfNormal}(0, 2)
+$$
+
+Finally, the noise standard deviation parameter ($\sigma$) for each subject $s$ is drawn from a population gamma distribution with parameters $\alpha=\sigma_\alpha$ and $\beta=\sigma_\beta$.
+
+$$
+\forall s, ~ \sigma_s \sim \text{Gamma}(\sigma_\alpha, \sigma_\beta)
+$$
+
+And the mean of this population distribution is drawn from a half-normal distribution with $\mu=0$ and $\sigma=1$ (which was the prior on the $\alpha$ parameter in the single-subject models).
+
+$$
+\text{E}[\text{Gamma}(\sigma_\alpha, \sigma_\beta)] = \frac{\sigma_\alpha}{\sigma_\beta} \sim \text{HalfNormal}(0, 1)
+$$
+
+Here is the Stan routine for the multilevel Gaussian process model.  The main difference is that now we have to compute a covariance matrix for each subject individually, and of course now we have population distributions and individual parameters for each subject.
+
+```{r}
+writeLines(readLines("lgp_multilevel.stan"))
+```
+
+TODO: actually might have to parameterize the gamma dists as mean and var, instead of alpha and beta (better sampling for stan w/ a multilevel model!)
 
 
 ### Hidden Markov Model
 
-TODO: the math and model diagram
+The single-subject hidden Markov model has four parameters: the recurrent transition probabilities for state 1 ($\phi_{1,1}$) and state 2 ($\phi_{2,2}$), along with the observation parameters for state 1 ($\theta_1$) and state 2 ($\theta_2$).  The transition probabilities ($\phi_{i,i}$) are constrained between 0 and 1, so we'll use a [Beta distribution](https://en.wikipedia.org/wiki/Beta_distribution) to model their population distribution.  On the other hand, the observation parameters ($\theta_i$) are constrained to be greater than zero, so we'll use a gamma distribution to model their population distribution.  Like with the Gaussian process, we'll put a prior on the means of the population distributions which is identical to the prior we used on the raw parameters in the single-subject versions of the models.
 
 ![Multilevel Hidden Markov Model](img/multilevel_hidden_markov_model.svg)
 
-TODO: show stan routine
+The transition probability parameters ($\phi_{i,i}$) for each subject $s$ are drawn from population beta distributions with parameters $\alpha=\phi_{\alpha,i}$ and $\beta=\phi_{\beta,i}$.  
 
+$$
+\forall s, ~ \phi_{i,i,s} \sim \text{Beta}(\phi_{\alpha,i}, \phi_{\beta,i})
+$$
+
+Where $\phi_{i,i,s}$ is the $\phi_{i,i}$ parameter for subject $s$.
+
+The means of these population distributions are drawn from a beta distribution with $\alpha=1.2$ and $\beta=1.2$ (which was the prior on the $\phi_{i,i}$ parameter in the single-subject models).
+
+$$
+\text{E}[\text{Beta}(\phi_{\alpha,i}, \phi_{\beta,i})] = \frac{\phi_{\alpha,i}}{\phi_{\alpha,i}+\phi_{\beta,i}} \sim \text{Beta}(1.2, 1.2)
+$$
+
+The observation parameters ($\theta_i$) for each subject $s$ are drawn from population gamma distributions with parameters $\alpha=\theta_{\alpha,i}$ and $\beta=\theta_{\beta,i}$.  
+
+$$
+\forall s, ~ \theta_{i,s} \sim \text{Gamma}(\theta_{\alpha,i}, \theta_{\beta,i})
+$$
+
+Where $\theta_{i,s}$ is the $\theta_i$ parameter for subject $s$.
+
+The means of these population distributions are drawn from a gamma distribution with $\alpha=2$ and $\beta=2$ (which was the prior on the $\theta_i$ parameter in the single-subject models).
+
+$$
+\text{E}[\text{Gamma}(\theta_{\alpha,i}, \theta_{\beta,i})] = \frac{\theta_{\alpha,i}}{\theta_{\beta,i}} \sim \text{Gamma}(2, 2)
+$$
+
+Here is the Stan routine for the multilevel hidden Markov model.
+
+```{r}
+writeLines(readLines("hmm_multilevel.stan"))
+```
 
 ### Validation
 
