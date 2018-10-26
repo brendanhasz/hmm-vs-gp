@@ -10,7 +10,7 @@ data {
 transformed data {
   vector[N] mu;      //mean function
   real sum_ln_scale; //sum of scales for logit normal dists
-  row_vector<lower=0, upper=1>[N] logit_y[Nt]; //logit(y)
+  row_vector[N] logit_y[Nt]; //logit(y)
   mu = rep_vector(0, N);
   sum_ln_scale = 0;
   for (i in 1:Nt) //pre-compute contribution of logit normal scales

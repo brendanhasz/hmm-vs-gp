@@ -1,6 +1,3 @@
-// 2-state Hidden Markov Model 
-// with Beta-distributed observation probabilities
-
 data {
   int<lower=1> N;              //number of observations
   real<lower=0, upper=1> y[N]; //observations
@@ -36,8 +33,5 @@ model {
     }
     target += log_sum_exp(gamma[N]);
   }
-
-  // TODO: handle multiple trials
-  // TODO: multilevel model to handle multiple subjects
 
 }

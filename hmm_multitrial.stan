@@ -1,10 +1,7 @@
-// 2-state Hidden Markov Model 
-// with Beta-distributed observation probabilities
-
 data {
   int<lower=1> N; //number of observations per trial
-  int<lower=1> M; //number of trials
-  real<lower=0, upper=1> y[M, N]; //observations
+  int<lower=1> Nt; //number of trials
+  real<lower=0, upper=1> y[Nt, N]; //observations
 
 }
 
@@ -25,7 +22,7 @@ model {
   {
     real acc[2];
     real gamma[N, 2];
-    for (i in 1:M) { // accumulate evidence over trials
+    for (i in 1:Nt) { // accumulate evidence over trials
       gamma[1,1] = beta_lpdf(y[i,1] | 1, theta[1]);
       gamma[1,2] = beta_lpdf(y[i,2] | theta[2], 1);
       for (t in 2:N) {
@@ -40,7 +37,5 @@ model {
       target += log_sum_exp(gamma[N]);
     }
   }
-
-  // TODO: multilevel model to handle multiple subjects
 
 }

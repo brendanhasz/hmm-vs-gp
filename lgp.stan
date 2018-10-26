@@ -17,13 +17,9 @@ parameters {
 
 model {
   
-    // TODO: wait - why do we have to cholesky_decompose? 
-    // we don't need to do that if we're not generating the mean line, right?
-    
     // Decomposed covariance matrix
     matrix[N, N] K = cov_exp_quad(x, alpha, rho)
                      + diag_matrix(rep_vector(square(sigma), N));
-    ///matrix[N, N] L_K = cholesky_decompose(K);
 
     // Priors
     target += inv_gamma_lpdf(rho | 2, 0.5);
@@ -31,12 +27,8 @@ model {
     target += normal_lpdf(sigma | 0, 1) + log(2); //mult density by 2
 
     // Likelihood
-    //target += multi_normal_cholesky_lpdf(logit(y) | mu, L_K);
     target += multi_normal_lpdf(logit(y) | mu, K);
 
     // Add scale such that likelihood integrates to 1 over y
     target += ln_scale;
-    
-    // TODO: handle multiple trials
-    // TODO: multilevel model to handle multiple subjects
 }

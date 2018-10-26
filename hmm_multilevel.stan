@@ -19,8 +19,8 @@ parameters {
 }
 
 transformed parameters {
-  vector<lower=0>[2] phi_mu = phi_a./(phi_a+phi_b);//pop mean recursive trans prob
-  vector<lower=1>[2] theta_mu = theta_a./theta_b;  //pop mean obs dist param
+  vector<lower=0>[2] phi_mu = phi_a./(phi_a+phi_b); //pop mean recursive trans prob
+  vector<lower=1>[2] theta_mu = theta_a./theta_b+1; //pop mean obs dist param
 }
 
 model {
