@@ -64,9 +64,9 @@ model {
   
   // Subject-level parameters drawn from pop-level distributions
   // (non-centered parameterizations)
-  target += normal_lpdf(rho_tilde | 0, 1);  //log(rho) ~ normal(rho_m, rho_s)
-  target += normal_lpdf(alpha_tilde | 0, 1);//log(alpha) ~ normal(alpha_m, alpha_s)
-  target += normal_lpdf(sigma_tilde | 0, 1);//log(sigma) ~ normal(sigma_m, sigma_s)
+  target += normal_lpdf(rho_tilde | 0, 1);   //log(rho) ~ normal(rho_m, rho_s)
+  target += normal_lpdf(alpha_tilde | 0, 1); //log(alpha) ~ normal(alpha_m, alpha_s)
+  target += normal_lpdf(sigma_tilde | 0, 1); //log(sigma) ~ normal(sigma_m, sigma_s)
   
   // Jacobian adjustments for GLM parts of model
   target += -sum(log(rho));

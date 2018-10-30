@@ -1305,37 +1305,37 @@ for (sub in 1:Ns){
 
 Now we can fit both models to both sets of data.
 
-TODO: non-centered parameterizations for the HMM (and debug/verify)
-
 TODO: maybe make the priors on the pop dist variances t-dists instead of half-normals?
 
-TODO: update the math and model diagrams above!!!
+TODO: update the math and model diagrams above!!! including the non-centered parameterizations, and why. Include link to: Check out this [case study](http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html)
 
 ```{r}
 # Fit each model to each multitrial dataset
-#fit_gp_to_gp = stan(file='lgp_multilevel.stan', data=gp_data, seed=seed)
-#fit_hmm_to_gp = stan(file='hmm_multilevel.stan', data=gp_data, seed=seed)
-#fit_gp_to_hmm = stan(file='lgp_multilevel.stan', data=hmm_data, seed=seed)
-fit_hmm_to_hmm = stan(file='hmm_multilevel.stan', data=hmm_data, seed=seed)
+fit_gp_to_gp = stan(file='lgp_multilevel.stan', data=gp_data, seed=seed)
+fit_hmm_to_gp = stan(file='hmm_multilevel.stan', data=gp_data, seed=seed)
+fit_gp_to_hmm = stan(file='lgp_multilevel.stan', data=hmm_data, seed=seed)
+fit_hmm_to_hmm = stan(file='hmm_multilevel.stan', data=hmm_data, seed=seed+1000)
 ```
 
-TODO: check diagnostics of each fit
+The chains converged for all four fits (Rhat values look good are near 1), and the number of effective samples look OK for the parameters of interest, though we may want to run sampling for more iterations than the default (notice that the effective number of samples for the population mean parameters `phi_m` and `theta_m` are closer to 1000 than 4000).  Let's take a look at the HMC diagnostics.
 
 ```{r}
 # Check MCMC diagnostics for GP fit to GP data
 check_hmc_diagnostics(fit_gp_to_gp)
 
 # Check MCMC diagnostics for HMM fit to GP data
-#check_hmc_diagnostics(fit_hmm_to_gp)
+check_hmc_diagnostics(fit_hmm_to_gp)
 
 # Check MCMC diagnostics for GP fit to HMM data
 check_hmc_diagnostics(fit_gp_to_hmm)
 
 # Check MCMC diagnostics for HMM fit to HMM data
-#check_hmc_diagnostics(fit_hmm_to_hmm)
+check_hmc_diagnostics(fit_hmm_to_hmm)
 ```
 
-TODO: ensure you recover correct population params for models fit to themselves
+The diagnostics look mostly good, however there were some divergent transitions in some cases.  However, there are a very small proportion of divergent transitions (less than half a percent of samples).
+
+TODO: check if divergences concentrate anywhere in parameter space - if not, we good
 
 Were the models able to recover the parameters used to generate the data?  The Gaussian process fit was able to sucessfully recover the parameters of the Gaussian process used to generate the data.
 
