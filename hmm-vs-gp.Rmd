@@ -1307,6 +1307,8 @@ Now we can fit both models to both sets of data.
 
 TODO: non-centered parameterizations for the HMM (and debug/verify)
 
+TODO: maybe make the priors on the pop dist variances t-dists instead of half-normals?
+
 TODO: update the math and model diagrams above!!!
 
 ```{r}
@@ -1335,6 +1337,8 @@ check_hmc_diagnostics(fit_gp_to_hmm)
 
 TODO: ensure you recover correct population params for models fit to themselves
 
+Were the models able to recover the parameters used to generate the data?  The Gaussian process fit was able to sucessfully recover the parameters of the Gaussian process used to generate the data.
+
 ```{r, dev='svg', fig.height=3, fig.width=8}
 # Plot true vs posterior for GP fit to GP
 posterior = extract(fit_gp_to_gp)
@@ -1348,6 +1352,26 @@ abline(v=alpha_mu, col=c_dark, lwd=3)
 
 interval_density(posterior$sigma_m, xlab="Population mean sigma")
 abline(v=sigma_mu, col=c_dark, lwd=3)
+```
+
+As was the hidden Markov model!
+
+```{r, dev='svg'}
+# Plot true vs posterior
+posterior = extract(fit_hmm_to_hmm)
+par(mfrow=c(2, 2))
+
+interval_density(posterior$phi_m[,1], xlab="Population mean phi[1,1]")
+abline(v=phi_mu, col=c_dark, lwd=3)
+
+interval_density(posterior$phi_m[,2], xlab="Population mean phi[2,2]")
+abline(v=phi_mu, col=c_dark, lwd=3)
+
+interval_density(posterior$theta_m[,1], xlab="Population mean theta[1]")
+abline(v=theta_mu, col=c_dark, lwd=3)
+
+interval_density(posterior$theta_m[,2], xlab="Population mean theta[2]")
+abline(v=theta_mu, col=c_dark, lwd=3)
 ```
 
 TODO: ensure you recover correct INDIVIDUAL params for models fit to themselves
