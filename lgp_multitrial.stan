@@ -35,6 +35,6 @@ model {
     target += multi_normal_lpdf(logit(y[i]) | mu, K);
     
   // Add scales such that likelihood integrates to 1 over y
-  target += sum(ln_scale);
+  target += sum_ln_scale;
   
 }

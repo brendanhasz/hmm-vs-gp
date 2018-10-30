@@ -1,6 +1,9 @@
 ---
 title: "Bayesian Modeling of Gaussian Processes and Hidden Markov Models with Stan"
-output: html_notebook
+output:
+   html_document:
+       toc: yes
+       self_contained: no
 ---
 
 ## Background
@@ -1302,12 +1305,16 @@ for (sub in 1:Ns){
 
 Now we can fit both models to both sets of data.
 
+TODO: non-centered parameterizations for the HMM (and debug/verify)
+
+TODO: update the math and model diagrams above!!!
+
 ```{r}
 # Fit each model to each multitrial dataset
-fit_gp_to_gp = stan(file='lgp_multilevel.stan', data=gp_data, seed=seed)
+#fit_gp_to_gp = stan(file='lgp_multilevel.stan', data=gp_data, seed=seed)
 #fit_hmm_to_gp = stan(file='hmm_multilevel.stan', data=gp_data, seed=seed)
 #fit_gp_to_hmm = stan(file='lgp_multilevel.stan', data=hmm_data, seed=seed)
-#fit_hmm_to_hmm = stan(file='hmm_multilevel.stan', data=hmm_data, seed=seed)
+fit_hmm_to_hmm = stan(file='hmm_multilevel.stan', data=hmm_data, seed=seed)
 ```
 
 TODO: check diagnostics of each fit
@@ -1320,7 +1327,7 @@ check_hmc_diagnostics(fit_gp_to_gp)
 #check_hmc_diagnostics(fit_hmm_to_gp)
 
 # Check MCMC diagnostics for GP fit to HMM data
-#check_hmc_diagnostics(fit_gp_to_hmm)
+check_hmc_diagnostics(fit_gp_to_hmm)
 
 # Check MCMC diagnostics for HMM fit to HMM data
 #check_hmc_diagnostics(fit_hmm_to_hmm)

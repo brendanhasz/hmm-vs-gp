@@ -63,10 +63,15 @@ model {
   target += normal_lpdf(sigma_s | 0, 0.5) + log(2);
   
   // Subject-level parameters drawn from pop-level distributions
-  // non-centered parameterizations, equivalent to log(x) ~ normal(x_m, x_s)
-  target += normal_lpdf(rho_tilde | 0, 1) - sum(log(rho));
-  target += normal_lpdf(alpha_tilde | 0, 1) - sum(log(alpha));
-  target += normal_lpdf(sigma_tilde | 0, 1) - sum(log(sigma));
+  // (non-centered parameterizations)
+  target += normal_lpdf(rho_tilde | 0, 1);  //log(rho) ~ normal(rho_m, rho_s)
+  target += normal_lpdf(alpha_tilde | 0, 1);//log(alpha) ~ normal(alpha_m, alpha_s)
+  target += normal_lpdf(sigma_tilde | 0, 1);//log(sigma) ~ normal(sigma_m, sigma_s)
+  
+  // Jacobian adjustments for GLM parts of model
+  target += -sum(log(rho));
+  target += -sum(log(alpha));
+  target += -sum(log(sigma));
   
   // Accumulate evidence over trials
   for (i in 1:Nt)
