@@ -1311,10 +1311,11 @@ TODO: update the math and model diagrams above!!! including the non-centered par
 
 ```{r}
 # Fit each model to each multitrial dataset
-fit_gp_to_gp = stan(file='lgp_multilevel.stan', data=gp_data, seed=seed)
-fit_hmm_to_gp = stan(file='hmm_multilevel.stan', data=gp_data, seed=seed)
-fit_gp_to_hmm = stan(file='lgp_multilevel.stan', data=hmm_data, seed=seed)
-fit_hmm_to_hmm = stan(file='hmm_multilevel.stan', data=hmm_data, seed=seed+1000)
+#fit_gp_to_gp = stan(file='lgp_multilevel.stan', data=gp_data, seed=seed)
+#fit_hmm_to_gp = stan(file='hmm_multilevel.stan', data=gp_data, seed=seed)
+#fit_gp_to_hmm = stan(file='lgp_multilevel.stan', data=hmm_data, seed=seed)
+#fit_hmm_to_hmm = stan(file='hmm_multilevel.stan', data=hmm_data, seed=seed+1000)
+fit2 = stan(file='hmm_multilevel.stan', data=hmm_data, seed=seed+1000)
 ```
 
 The chains converged for all four fits (Rhat values look good are near 1), and the number of effective samples look OK for the parameters of interest, though we may want to run sampling for more iterations than the default (notice that the effective number of samples for the population mean parameters `phi_m` and `theta_m` are closer to 1000 than 4000).  Let's take a look at the HMC diagnostics.
@@ -1359,6 +1360,7 @@ As was the hidden Markov model!
 ```{r, dev='svg'}
 # Plot true vs posterior
 posterior = extract(fit_hmm_to_hmm)
+posterior = extract(fit2)
 par(mfrow=c(2, 2))
 
 interval_density(posterior$phi_m[,1], xlab="Population mean phi[1,1]")

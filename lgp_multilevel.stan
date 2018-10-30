@@ -58,9 +58,9 @@ model {
   target += inv_gamma_lpdf(rho_m | 2, 0.5);
   target += normal_lpdf(alpha_m | 0, 2) + log(2);
   target += normal_lpdf(sigma_m | 0, 1) + log(2);
-  target += normal_lpdf(rho_s | 0, 0.5) + log(2);
-  target += normal_lpdf(alpha_s | 0, 0.5) + log(2);
-  target += normal_lpdf(sigma_s | 0, 0.5) + log(2);
+  target += student_t_lpdf(rho_s | 3, 0, 0.5) + log(2);
+  target += student_t_lpdf(alpha_s | 3, 0, 0.5) + log(2);
+  target += student_t_lpdf(sigma_s | 3, 0, 0.5) + log(2);
   
   // Subject-level parameters drawn from pop-level distributions
   // (non-centered parameterizations)
