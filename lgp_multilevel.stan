@@ -1,9 +1,9 @@
 functions {
   /**
    * Return a covariance matrix using the exponentiated quadratic 
-   * kernel, optimized for when elements of x are evenly spaced.
+   * kernel, optimized for when elements of x are linearly spaced.
    * 
-   * @param x Vector of evenly-spaced independent variable values
+   * @param x Vector of linearly-spaced independent variable values
    * @param a Signal standard deviation (or amplitude) parameter
    * @param r Length scale parameter
    * @param s Noise standard deviation parameter
@@ -11,7 +11,7 @@ functions {
    *
    * @return Covariance matrix (N-by-N)
    */
-  matrix cov_exp_quad_lin(vector x, real a, real r, real s, int N) {
+  matrix cov_exp_quad_lin(real[] x, real a, real r, real s, int N) {
     matrix[N, N] K;
     real a2;
     real r2;
@@ -19,8 +19,10 @@ functions {
     real a2s2;
     real dx;
     real dx2;
+    real val;
+    int k;
     a2 = a*a;
-    r2 = -0.5*r*r;
+    r2 = -0.5/(r*r);
     s2 = s*s;
     a2s2 = a2+s2;
     for (i in 1:N) //fill in diagonal
@@ -30,8 +32,9 @@ functions {
       dx2 = dx*dx;    //squared difference
       val = a2*exp(r2*dx2); //value for this off-diagonal
       for (j in 1:(N-i+1)) {
-        K[i,j] = val; //off-diagonals
-        K[j,i] = val; //are identical
+        k = i+j-1;
+        K[j,k] = val; //off-diagonals
+        K[k,j] = val; //are identical
       }
     }
     return(K);
