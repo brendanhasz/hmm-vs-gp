@@ -17,16 +17,14 @@ transformed data {
 }
 
 parameters {
-  real<lower=0> rho[Ns]; //length scale
-  
   // Per-subject parameters (non-centered parameterization)
-  //real rho_tilde[Ns];   //non-centered std of length scale
+  real rho_tilde[Ns];   //non-centered std of length scale
   real alpha_tilde[Ns]; //non-centered std of signal std dev
   real sigma_tilde[Ns]; //non-centered std of noise std dev
   
   // Population-level parameters
-  //real<lower=0> rho_m;   //mean of rho population distribution
-  //real<lower=0> rho_s;   //std of rho population distribution
+  real<lower=0> rho_m;   //mean of rho population distribution
+  real<lower=0> rho_s;   //std of rho population distribution
   real<lower=0> alpha_m; //mean of alpha population distribution
   real<lower=0> alpha_s; //std of alpha population distribution
   real<lower=0> sigma_m; //mean of sigma population distribution
@@ -34,15 +32,14 @@ parameters {
 }
 
 transformed parameters {
-  
   // Per-subject parameters
-  //real<lower=0> rho[Ns];   //length scale
+  real<lower=0> rho[Ns];   //length scale
   real<lower=0> alpha[Ns]; //signal standard deviation
   real<lower=0> sigma[Ns]; //noise standard deviation
   
   // Non-centered parameterization of per-subject parameters
   for (s in 1:Ns) {
-    //rho[s] = exp(log(rho_m) + rho_s * rho_tilde[s]);
+    rho[s] = exp(log(rho_m) + rho_s * rho_tilde[s]);
     alpha[s] = exp(log(alpha_m) + alpha_s * alpha_tilde[s]);
     sigma[s] = exp(log(sigma_m) + sigma_s * sigma_tilde[s]);
   }
@@ -57,22 +54,17 @@ model {
            diag_matrix(rep_vector(square(sigma[s]), N));
   }
 
-  // TODO: DEBUGGER: total non-pooling
-  target += inv_gamma_lpdf(rho | 2, 0.5);
-  //target += normal_lpdf(alpha | 0, 2) + log(2); //half-normal dists
-  //target += normal_lpdf(sigma | 0, 1) + log(2); //mult density by 2
-  
   // Priors (on population-level params)
-  //target += inv_gamma_lpdf(rho_m | 2, 0.5);
+  target += inv_gamma_lpdf(rho_m | 2, 0.5);
   target += normal_lpdf(alpha_m | 0, 2) + log(2);
   target += normal_lpdf(sigma_m | 0, 1) + log(2);
-  //target += normal_lpdf(rho_s | 0, 0.4) + log(2);
+  target += normal_lpdf(rho_s | 0, 0.5) + log(2);
   target += normal_lpdf(alpha_s | 0, 0.5) + log(2);
   target += normal_lpdf(sigma_s | 0, 0.5) + log(2);
   
   // Subject-level parameters drawn from pop-level distributions
-  // (non-centered parameterizations)
-  //target += normal_lpdf(rho_tilde | 0, 1) - sum(log(rho));
+  // non-centered parameterizations, equivalent to log(x) ~ normal(x_m, x_s)
+  target += normal_lpdf(rho_tilde | 0, 1) - sum(log(rho));
   target += normal_lpdf(alpha_tilde | 0, 1) - sum(log(alpha));
   target += normal_lpdf(sigma_tilde | 0, 1) - sum(log(sigma));
   

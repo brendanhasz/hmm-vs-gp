@@ -1328,6 +1328,21 @@ check_hmc_diagnostics(fit_gp_to_gp)
 
 TODO: ensure you recover correct population params for models fit to themselves
 
+```{r, dev='svg', fig.height=3, fig.width=8}
+# Plot true vs posterior for GP fit to GP
+posterior = extract(fit_gp_to_gp)
+par(mfrow=c(1, 3))
+
+interval_density(posterior$rho_m, xlab="Population mean rho")
+abline(v=rho_mu, col=c_dark, lwd=3)
+
+interval_density(posterior$alpha_m, xlab="Population mean alpha")
+abline(v=alpha_mu, col=c_dark, lwd=3)
+
+interval_density(posterior$sigma_m, xlab="Population mean sigma")
+abline(v=sigma_mu, col=c_dark, lwd=3)
+```
+
 TODO: ensure you recover correct INDIVIDUAL params for models fit to themselves
 
 TODO: ensure bayes factors favor models fit to themselves
