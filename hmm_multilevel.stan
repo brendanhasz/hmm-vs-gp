@@ -12,15 +12,16 @@ parameters {
   real<lower=1> theta[Ns,2]; //observation distribution params
   
   // Population-level parameters
-  vector<lower=0>[2] phi_a;   //alpha param of phi's population beta dist
-  vector<lower=0>[2] phi_b;   //beta param of phi's population beta dist
+  vector<lower=1>[2] phi_a;   //alpha param of phi's population beta dist
+  vector<lower=1>[2] phi_b;   //beta param of phi's population beta dist
   vector<lower=0>[2] theta_a; //alpha param of theta's pop. gamma dist
   vector<lower=0>[2] theta_b; //beta param of theta's population gamma dist
 }
 
 transformed parameters {
-  vector<lower=0>[2] phi_mu = phi_a./(phi_a+phi_b); //pop mean recursive trans prob
+  vector<lower=0,upper=1>[2] phi_mu = phi_a./(phi_a+phi_b); //pop mean recursive trans prob
   vector<lower=1>[2] theta_mu = theta_a./theta_b+1; //pop mean obs dist param
+  //TODO: lambda param for beta dist (total count) w/ parieto prior? see pg 286 of stan manual
 }
 
 model {
