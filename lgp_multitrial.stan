@@ -6,11 +6,12 @@ data {
 }
 
 transformed data {
-  vector[N] mu;      //mean function
-  real ln_scale[Nt]; //scale for logit normal dists
+  vector[N] mu;      //mean function (vector of 0s)
+  real sum_ln_scale; //sum of scales for logit normal dists
   mu = rep_vector(0, N);
-  for (i in 1:Nt) 
-    ln_scale[i] = -sum(log(y[i])+log(1-y[i])); 
+  sum_ln_scale = 0;
+  for (i in 1:Nt) //pre-compute contribution of logit normal scales
+    sum_ln_scale += -sum(log(y[i])+log(1-y[i]));
 }
 
 parameters {
@@ -23,8 +24,7 @@ model {
   // Covariance matrix (assume x same for each trial)
   matrix[N, N] K = cov_exp_quad(x, alpha, rho) + 
                    diag_matrix(rep_vector(square(sigma), N));
-  //matrix[N, N] K = cov_exp_quad_lin(x, alpha, rho, sigma, N); 
-  
+
   // Priors
   target += inv_gamma_lpdf(rho | 2, 0.5);
   target += normal_lpdf(alpha | 0, 2) + log(2); //half-normal dists

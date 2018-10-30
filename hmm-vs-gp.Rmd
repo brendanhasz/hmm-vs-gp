@@ -928,9 +928,9 @@ Now we can fit both models to both sets of data.
 ```{r}
 # Fit each model to each multitrial dataset
 fit_gp_to_gp = stan(file='lgp_multitrial.stan', data=gp_data, seed=seed)
-fit_hmm_to_gp = stan(file='hmm_multitrial.stan', data=gp_data, seed=seed)
-fit_gp_to_hmm = stan(file='lgp_multitrial.stan', data=hmm_data, seed=seed)
-fit_hmm_to_hmm = stan(file='hmm_multitrial.stan', data=hmm_data, seed=seed)
+#fit_hmm_to_gp = stan(file='hmm_multitrial.stan', data=gp_data, seed=seed)
+#fit_gp_to_hmm = stan(file='lgp_multitrial.stan', data=hmm_data, seed=seed)
+#fit_hmm_to_hmm = stan(file='hmm_multitrial.stan', data=hmm_data, seed=seed)
 ```
 
 Let's check the MCMC diagnostics to ensure there weren't any major problems with the fits.
@@ -1159,17 +1159,19 @@ Here is the Stan routine for the multilevel hidden Markov model.
 writeLines(readLines("hmm_multilevel.stan"))
 ```
 
+I tried implementing several optimizations, including pre-computing logit(y), writing a custom user-defined Stan function to compute the covariance matrix which assumed linearly-spaced x values, etc.  However, none of the optimizations actually ended up making the sampling run any faster!  Stan's pretty fast as is.  Well, maybe not fast.  Optimized, at least.
+
 ### Validation
 
 Let's generate some data from a Gaussian process which contiains simulated data from multiple trials and multiple subjects.
 
 ```{r}
 # Data
-N = 100 #datapoints per trial
+N = 50 #datapoints per trial
 Ns = 5 #number of subjects
 Nts = 5 #number of trials per subject
 Nt = Ns*Nts #total number of trials
-x = seq(0, 5, l=N)
+x = seq(0, 2.5, l=N)
 
 # Population Distribution Means and variances
 rho_mu = 0.5
