@@ -41,13 +41,13 @@ model {
     // Priors (on population-level params)
     target += beta_lpdf(phi_m[i] | 1.2, 1.2);
     target += gamma_lpdf(theta_m[i]-1 | 2, 2);
-    target += student_t_lpdf(phi_s[i] | 3, 0, 1) + log(2);
-    target += student_t_lpdf(theta_s[i] | 3, 0, 2) + log(2);
+    target += normal_lpdf(phi_s[i] | 0, 1) + log(2);
+    target += normal_lpdf(theta_s[i] | 0, 2) + log(2);
   
     // Subject-level parameters drawn from pop-level distributions
     // (non-centered parameterizations)
-    target += normal_lpdf(phi_tilde[,i] | 0, 1);   //logit(phi) ~ normal(phi_m, phi_s)
-    target += normal_lpdf(theta_tilde[,i] | 0, 1); //log(theta) ~ normal(theta_m, theta_s)
+    target += normal_lpdf(phi_tilde[,i] | 0, 1);   //logit(phi) ~ normal(inv_logit(phi_m), phi_s)
+    target += normal_lpdf(theta_tilde[,i] | 0, 1); //log(theta) ~ normal(exp(theta_m), theta_s)
   
     // Jacobian adjustments for GLM parts of model
     for (s in 1:Ns)
