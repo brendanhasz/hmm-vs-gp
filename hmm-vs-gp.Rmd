@@ -39,7 +39,7 @@ library(bridgesampling)
 library(RColorBrewer)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
-seed = 723456
+seed = 1234567
 
 # Colors
 c_light <- c("#DCBCBC")
@@ -186,6 +186,10 @@ $\alpha^2$ is the signal variance (or "output" variance), because it controls ho
 $\rho$ is the length-scale parameter, because it controls how quickly the $y$ values can change over time.  Smaller values of $\rho$ yield Gaussian processes whose $y$ values change quickly over time, while larger values of $\rho$ yield Gaussian processes with $y$ values which change more slowly with time.
 
 Finally, the $\sigma^2$ term of the kernel function is the noise standard deviation - because we're assuming there is some noise associated with our observations.  $\delta_{ij}$ takes the value $1$ when $i$ and $j$ are the same, and 0 otherwise - so we're just adding $\sigma^2$ to the diagonal of $\Sigma$.
+
+In short, we've got a model with three parameters: $\rho$ controls how quickly the latent function can change over time, $\alpha$ controls how far the latent function can stray from 0, and $\sigma$ controls how far the observed datapoints can stray from the latent function.
+
+![Gaussian Process](img/unilevel_gaussian_process.svg)
 
 
 ### Bounded Gaussian Process
@@ -502,6 +506,9 @@ $$
 
 The sum above is over possible states $j$ (so only $1$ and $2$ in our case).  This equation is just computing the probability of arriving at state $i$ from any other state, times the probability of our observation given that we're in that hidden state.
 
+So, we have a model with two states ("up" and "down") where the $\phi$ parameter for each state controls how long the model is likely to stay in the same state, and the $\theta$ parameter for that state controls how far the observed values are allowed to stray from that state's extrema.
+
+![Hidden Markov Model](img/unilevel_hidden_markov_model.svg)
 
 ### Priors
 
@@ -1306,11 +1313,11 @@ for (sub in 1:Ns){
 Now we can fit both models to both sets of data.
 
 ```{r}
-# Fit each model to each multitrial dataset
+# Fit each model to each multisubject dataset
 fit_gp_to_gp = stan(file='lgp_multilevel.stan', data=gp_data, seed=seed)
 fit_hmm_to_gp = stan(file='hmm_multilevel.stan', data=gp_data, seed=seed)
 fit_gp_to_hmm = stan(file='lgp_multilevel.stan', data=hmm_data, seed=seed)
-fit_hmm_to_hmm = stan(file='hmm_multilevel.stan', data=hmm_data, seed=seed+1000)
+fit_hmm_to_hmm = stan(file='hmm_multilevel.stan', data=hmm_data, seed=seed)
 ```
 
 The chains converged for all four fits (Rhat values look good are near 1), and the number of effective samples look OK for the parameters of interest, though we may want to run sampling for more iterations than the default (notice that the effective number of samples for the population mean parameters `phi_m` and `theta_m` are closer to 1000 than 4000).  Let's take a look at the HMC diagnostics.
@@ -1357,7 +1364,6 @@ As was the hidden Markov model!
 ```{r, dev='svg'}
 # Plot true vs posterior
 posterior = extract(fit_hmm_to_hmm)
-posterior = extract(fit2)
 par(mfrow=c(2, 2))
 
 interval_density(posterior$phi_m[,1], xlab="Population mean phi[1,1]")
