@@ -1453,3 +1453,15 @@ TODO: ensure marginal likelihoods are higher for each model when fit to themselv
 ## Conclusion
 
 By fitting both the Gaussian process model and the hidden Markov model to neural data, we can use bride sampling to find which model is more likely to explain the neural activity.  However, it's important to realize that even if the Bayes factor favors one of these models over the other, that doesn't imply that model explains how the neural activity is being generated.  Rather, it just shows that the dynamics of the neural activity better match one model than the other.  The Bayes factor between the Gaussian process and the hidden Markov model will only tell us whether the neural representation of reward appears to be flicking back and forth between options (as would be predicted by sampling/deliberative theories of decision-making), or more slowly varying over time (as would be predicted by drift diffusion or integrate-to-threshold theories).  Ultimately, *how* the brain area of interest comes to represent reward in that way can only be understood by studying the inputs to that area, the connectivity within that area and its inputs, along with what information those inputs are representing and when.  Furthermore, it could very well be that one brain area is sampling, while another (perhaps downstream) brain area is performing integration, given the output value signals of the sampling.
+
+
+## Original Computing Environment
+
+```{r}
+writeLines(readLines(file.path(Sys.getenv("HOME"), ".R/Makevars")))
+```
+
+```{r}
+devtools::session_info()
+```
+
