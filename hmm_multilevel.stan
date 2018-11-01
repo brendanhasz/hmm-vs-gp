@@ -12,9 +12,9 @@ parameters {
   real theta_tilde[Ns,2]; //observation distribution params
   
   // Population-level parameters
-  real<lower=0,upper=1> phi_m[2]; //mean of phi population dists
+  real<lower=0,upper=1> phi_m[2]; //median of phi population dists
   real<lower=0> phi_s[2];   //std of phi population dists
-  real<lower=1> theta_m[2]; //mean of theta population dists
+  real<lower=1> theta_m[2]; //median of theta population dists
   real<lower=0> theta_s[2]; //std of theta population dists
 }
 

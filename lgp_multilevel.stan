@@ -23,11 +23,11 @@ parameters {
   real sigma_tilde[Ns]; //non-centered std of noise std dev
   
   // Population-level parameters
-  real<lower=0> rho_m;   //mean of rho population distribution
+  real<lower=0> rho_m;   //median of rho population distribution
   real<lower=0> rho_s;   //std of rho population distribution
-  real<lower=0> alpha_m; //mean of alpha population distribution
+  real<lower=0> alpha_m; //median of alpha population distribution
   real<lower=0> alpha_s; //std of alpha population distribution
-  real<lower=0> sigma_m; //mean of sigma population distribution
+  real<lower=0> sigma_m; //median of sigma population distribution
   real<lower=0> sigma_s; //std of sigma population distribution
 }
 
