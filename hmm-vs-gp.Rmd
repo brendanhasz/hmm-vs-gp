@@ -1082,12 +1082,9 @@ Another problem with the Stan models so far is they only handle a single subject
 
 ### Gaussian Process
 
-Our basic single-level Gaussian process has three parameters: the length scale ($\rho$), the signal standard deviation ($\alpha$, a.k.a. the marginal or output standard deviation), and the noise standard deviation ($\sigma$).  All three parameters are constrained to be greater than zero.  
+Our basic single-level Gaussian process has three parameters: the length scale ($\rho$), the signal standard deviation ($\alpha$, a.k.a. the marginal or output standard deviation), and the noise standard deviation ($\sigma$).  All three parameters are constrained to be greater than zero.  We'll use a [log-normal distribution](https://en.wikipedia.org/wiki/Log-normal_distribution) to model the population distribution for all three parameters.  Furthermore, we'll put a prior on the medians of these population-level distributions which is the same as the priors we were previously using on the parameters themselves (in the single-subject versions of the models).
 
-TODO: update the math and model diagrams!!! including the non-centered parameterizations, and why. Include link to: Check out this [case study](http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html)
-
-
-We'll use a [Gamma distribution](https://en.wikipedia.org/wiki/Gamma_distribution) to model the population distribution for all three parameters. Furthermore, we'll put a prior on the means of these population-level distributions which is the same as the priors we were previously using on the parameters themselves (in the single-subject versions of the models).
+TODO: update the math and model diagrams!!! 
 
 ![Multilevel Gaussian Process](img/multilevel_gaussian_process.svg)
 
@@ -1127,12 +1124,6 @@ $$
 \text{E}[\text{Gamma}(\sigma_\alpha, \sigma_\beta)] = \frac{\sigma_\alpha}{\sigma_\beta} \sim \text{HalfNormal}(0, 1)
 $$
 
-Here is the Stan routine for the multilevel Gaussian process model.  The main difference is that now we have to compute a covariance matrix for each subject individually, and now we have population distributions from which individual subject's parameters are drawn.
-
-```{r}
-writeLines(readLines("lgp_multilevel.stan"))
-```
-
 
 ### Hidden Markov Model
 
@@ -1168,13 +1159,25 @@ $$
 \text{E}[\text{Gamma}(\theta_{\alpha,i}, \theta_{\beta,i})] = \frac{\theta_{\alpha,i}}{\theta_{\beta,i}} \sim \text{Gamma}(2, 2)
 $$
 
-Here is the Stan routine for the multilevel hidden Markov model.
+
+### Non-centered parameterizations
+
+TODO: talk about the non-centered parameterizations, and why. Include link to: Check out this [case study](http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html)
+
+
+Here is the Stan routine for the multilevel Gaussian process model, with a non-centered parameterization.  The main difference is that now we have to compute a covariance matrix for each subject individually, and now we have population distributions from which individual subject's parameters are drawn.
+
+```{r}
+writeLines(readLines("lgp_multilevel.stan"))
+```
+
+I tried implementing several optimizations, including pre-computing logit(y), writing a custom user-defined Stan function to compute the covariance matrix which assumed linearly-spaced x values, etc.  However, none of the optimizations actually ended up making the sampling run any faster!  Stan's pretty fast as is.  Well, maybe not fast.  Optimized, at least.
+
+And here's the Stan routine for the multilevel hidden Markov model with a non-centered parameterization.
 
 ```{r}
 writeLines(readLines("hmm_multilevel.stan"))
 ```
-
-I tried implementing several optimizations, including pre-computing logit(y), writing a custom user-defined Stan function to compute the covariance matrix which assumed linearly-spaced x values, etc.  However, none of the optimizations actually ended up making the sampling run any faster!  Stan's pretty fast as is.  Well, maybe not fast.  Optimized, at least.
 
 
 ### Validation
