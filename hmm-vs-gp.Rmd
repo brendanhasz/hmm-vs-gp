@@ -1164,6 +1164,9 @@ $$
 
 TODO: talk about the non-centered parameterizations, and why. Include link to: Check out this [case study](http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html)
 
+TODO: MATH FOR NON-C GP
+
+![Multilevel Gaussian Process Non-centered Parameterization](img/multilevel_gaussian_process_noncentered.svg)
 
 Here is the Stan routine for the multilevel Gaussian process model, with a non-centered parameterization.  The main difference is that now we have to compute a covariance matrix for each subject individually, and now we have population distributions from which individual subject's parameters are drawn.
 
@@ -1172,6 +1175,10 @@ writeLines(readLines("lgp_multilevel.stan"))
 ```
 
 I tried implementing several optimizations, including pre-computing logit(y), writing a custom user-defined Stan function to compute the covariance matrix which assumed linearly-spaced x values, etc.  However, none of the optimizations actually ended up making the sampling run any faster!  Stan's pretty fast as is.  Well, maybe not fast.  Optimized, at least.
+
+TODO: MATH FOR NON-C HMM
+
+![Multilevel Hidden Markov Model Non-centered Parameterization](img/multilevel_hidden_markov_model_noncentered.svg)
 
 And here's the Stan routine for the multilevel hidden Markov model with a non-centered parameterization.
 

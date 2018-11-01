@@ -50,9 +50,9 @@ model {
     target += normal_lpdf(theta_tilde[,i] | 0, 1); //log(theta) ~ normal(exp(theta_m), theta_s)
   
     // Jacobian adjustments for GLM parts of model
-    for (s in 1:Ns)
-      target += -log(phi[s,i,i]*(1-phi[s,i,i]));
-    target += -sum(log(theta[,i]));
+    //for (s in 1:Ns)
+    //  target += -log(phi[s,i,i]*(1-phi[s,i,i]));
+    //target += -sum(log(theta[,i]));
   }
 
   // Compute the marginal probability over possible sequences
