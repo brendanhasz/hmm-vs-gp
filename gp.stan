@@ -27,9 +27,4 @@ model {
 
     // Likelihood
     y ~ multi_normal_cholesky(mu, L_K);
-
-    // TODO: can just compute L_K (or the list of them for each trial) in the transformed data block, will make sampling way faster
-    // TODO: sigmoid transform output of the multi_normal_cholesky between 0 and 1 (also add bounds to y in data block)
-    // TODO: handle multiple trials
-    // TODO: multilevel model to handle multiple subjects
 }
