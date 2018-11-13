@@ -1082,47 +1082,63 @@ Another problem with the Stan models so far is they only handle a single subject
 
 ### Gaussian Process
 
-Our basic single-level Gaussian process has three parameters: the length scale ($\rho$), the signal standard deviation ($\alpha$, a.k.a. the marginal or output standard deviation), and the noise standard deviation ($\sigma$).  All three parameters are constrained to be greater than zero.  We'll use a [log-normal distribution](https://en.wikipedia.org/wiki/Log-normal_distribution) to model the population distribution for all three parameters.  Furthermore, we'll put a prior on the medians of these population-level distributions which is the same as the priors we were previously using on the parameters themselves (in the single-subject versions of the models).
+Our basic single-level Gaussian process has three parameters: the length scale ($\rho$), the signal standard deviation ($\alpha$, a.k.a. the marginal or output standard deviation), and the noise standard deviation ($\sigma$).  All three parameters are constrained to be greater than zero.  We'll use a [log-normal distribution](https://en.wikipedia.org/wiki/Log-normal_distribution) to model the population distribution for all three parameters.  A log normal distribution is just a normal distribution, but where the variable has been passed through the $\log$ function.  This causes the distribution to be defined only $>0$. Furthermore, we'll put a prior on the medians of these population-level distributions which is the same as the priors we were previously using on the parameters themselves (in the single-subject versions of the models).
 
-TODO: update the math and model diagrams!!! 
+Here's a diagram of the multilevel Gaussian process model, and below we'll walk through it step by step.
 
 ![Multilevel Gaussian Process](img/multilevel_gaussian_process.svg)
 
-The length scale parameter ($\rho$) for each subject $s$ is drawn from a population gamma distribution with parameters $\alpha=\rho_\alpha$ and $\beta=\rho_\beta$.
+The length scale parameter ($\rho$) for each subject $i$ is drawn from a population log-normal distribution with median $\rho_m$ and standard deviation parameter $\rho_\sigma$.
 
 $$
-\forall s, ~ \rho_s \sim \text{Gamma}(\rho_\alpha, \rho_\beta)
+\forall i, ~ \rho_i \sim \text{LogNormal}(\log (\rho_m), \rho_\sigma)
 $$
 
-The mean of this population distribution is drawn from an inverse gamma distribution with $\alpha=2$ and $\beta=0.5$ (which was the prior on the $\rho$ parameter in the single-subject models).
+I say "standard deviation parameter" instead of "standard deviation", because the second parameter of the log-normal distribution is not the standard deviation of the distribution - it's the standard deviation of the *logarithm* of the distribution.
+
+The prior on the median of this population distribution is an inverse gamma distribution with $\alpha=2$ and $\beta=0.5$ (which was the prior on the $\rho$ parameter in the single-subject models).
 
 $$
-\text{E}[\text{Gamma}(\rho_\alpha, \rho_\beta)] = \frac{\rho_\alpha}{\rho_\beta} \sim \text{InvGamma}(2, 0.5)
+\rho_m \sim \text{InvGamma}(2, 0.5)
 $$
 
-The signal standard deviation parameter ($\alpha$) for each subject $s$ is drawn from a population gamma distribution with parameters $\alpha=\alpha_\alpha$ and $\beta=\alpha_\beta$.
+The prior on the standard deviation parameter ($\rho_\sigma$) is a half-normal distribution with a standard deviation of $0.5$.
 
 $$
-\forall s, ~ \alpha_s \sim \text{Gamma}(\alpha_\alpha, \alpha_\beta)
+\rho_\sigma \sim \text{HalfNormal}(0, 0.5)
 $$
 
-The mean of this population distribution is drawn from a half-normal distribution with $\mu=0$ and $\sigma=2$ (which was the prior on the $\alpha$ parameter in the single-subject models).
+The signal standard deviation parameter ($\alpha$) for each subject $i$ is drawn from a population log-normal distribution with median $\alpha_m$ and standard deviation parameter $\alpha_\sigma$..
 
 $$
-\text{E}[\text{Gamma}(\alpha_\alpha, \alpha_\beta)] = \frac{\alpha_\alpha}{\alpha_\beta} \sim \text{HalfNormal}(0, 2)
+\forall i, ~ \alpha_i \sim \text{LogNormal}(\log (\alpha_m), \alpha_\sigma)
 $$
 
-Finally, the noise standard deviation parameter ($\sigma$) for each subject $s$ is drawn from a population gamma distribution with parameters $\alpha=\sigma_\alpha$ and $\beta=\sigma_\beta$.
+The prior on the median of this population distribution is a half-normal distribution with $\mu=0$ and $\sigma=2$ (which was the prior on the $\alpha$ parameter in the single-subject models).
 
 $$
-\forall s, ~ \sigma_s \sim \text{Gamma}(\sigma_\alpha, \sigma_\beta)
+\alpha_m \sim \text{HalfNormal}(0, 2)
 $$
 
-And the mean of this population distribution is drawn from a half-normal distribution with $\mu=0$ and $\sigma=1$ (which was the prior on the $\alpha$ parameter in the single-subject models).
+The prior on the standard deviation parameter ($\alpha_\sigma$) is also a half-normal distribution, but with a standard deviation of $0.5$.
 
 $$
-\text{E}[\text{Gamma}(\sigma_\alpha, \sigma_\beta)] = \frac{\sigma_\alpha}{\sigma_\beta} \sim \text{HalfNormal}(0, 1)
+\alpha_\sigma \sim \text{HalfNormal}(0, 0.5)
 $$
+
+Finally, the noise standard deviation parameter ($\sigma$) for each subject $i$ is drawn from a population log-normal distribution with median $\sigma_m$ and standard deviation parameter $\sigma_sigma$.
+
+$$
+\forall i, ~ \sigma_i \sim \text{LogNormal}(\log (\sigma_m), \sigma_\sigma)
+$$
+
+The prior on the median of this population distribution is a half-normal distribution with a standard deviation of $1$ (which was the prior on the $\alpha$ parameter in the single-subject models).
+
+$$
+\sigma_m \sim \text{HalfNormal}(0, 1)
+$$
+
+And the prior on the standard deviation parameter ($\sigma_\sigma$) is a half-normal distribution with a standard deviation of $0.5$.
 
 
 ### Hidden Markov Model
@@ -1174,7 +1190,7 @@ Here is the Stan routine for the multilevel Gaussian process model, with a non-c
 writeLines(readLines("lgp_multilevel.stan"))
 ```
 
-I tried implementing several optimizations, including pre-computing logit(y), writing a custom user-defined Stan function to compute the covariance matrix which assumed linearly-spaced x values, etc.  However, none of the optimizations actually ended up making the sampling run any faster!  Stan's pretty fast as is.  Well, maybe not fast.  Optimized, at least.
+I tried implementing several optimizations, including pre-computing logit(y) (in the transformed data block), writing a custom user-defined Stan function to compute the covariance matrix which assumed linearly-spaced x values, etc.  However, none of the optimizations actually ended up making the sampling run any faster!  Stan's pretty fast as is.  Well. "Fast" might be an overstatement.  *Optimized*.
 
 TODO: MATH FOR NON-C HMM
 
