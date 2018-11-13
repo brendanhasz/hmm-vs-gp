@@ -1091,7 +1091,7 @@ Here's a diagram of the multilevel Gaussian process model, and below we'll walk 
 The length scale parameter ($\rho$) for each subject $i$ is drawn from a population log-normal distribution with median $\rho_m$ and standard deviation parameter $\rho_\sigma$.
 
 $$
-\forall i, ~ \rho_i \sim \text{LogNormal}(\log (\rho_m), \rho_\sigma)
+\forall i, ~ \rho_i \sim \text{LogNormal}(\log (\rho_m), ~ \rho_\sigma)
 $$
 
 I say "standard deviation parameter" instead of "standard deviation", because the second parameter of the log-normal distribution is not the standard deviation of the distribution - it's the standard deviation of the *logarithm* of the distribution.
@@ -1111,7 +1111,7 @@ $$
 The signal standard deviation parameter ($\alpha$) for each subject $i$ is drawn from a population log-normal distribution with median $\alpha_m$ and standard deviation parameter $\alpha_\sigma$..
 
 $$
-\forall i, ~ \alpha_i \sim \text{LogNormal}(\log (\alpha_m), \alpha_\sigma)
+\forall i, ~ \alpha_i \sim \text{LogNormal}(\log (\alpha_m), ~ \alpha_\sigma)
 $$
 
 The prior on the median of this population distribution is a half-normal distribution with $\mu=0$ and $\sigma=2$ (which was the prior on the $\alpha$ parameter in the single-subject models).
@@ -1143,36 +1143,52 @@ And the prior on the standard deviation parameter ($\sigma_\sigma$) is a half-no
 
 ### Hidden Markov Model
 
-The single-subject hidden Markov model has four parameters: the recurrent transition probabilities for state 1 ($\phi_{1,1}$) and state 2 ($\phi_{2,2}$), along with the observation parameters for state 1 ($\theta_1$) and state 2 ($\theta_2$).  The transition probabilities ($\phi_{i,i}$) are constrained between 0 and 1, so we'll use a [Beta distribution](https://en.wikipedia.org/wiki/Beta_distribution) to model their population distribution.  On the other hand, the observation parameters ($\theta_i$) are constrained to be greater than zero, so we'll use a gamma distribution to model their population distribution.  Like with the Gaussian process, we'll put a prior on the means of the population distributions which is identical to the prior we used on the raw parameters in the single-subject versions of the models.
+The single-subject hidden Markov model has four parameters: the recurrent transition probabilities for state 1 ($\phi_{1,1}$) and state 2 ($\phi_{2,2}$), along with the observation parameters for state 1 ($\theta_1$) and state 2 ($\theta_2$).  The transition probabilities ($\phi_{i,i}$) are constrained between 0 and 1, so we'll use a [logit-normal distribution](https://en.wikipedia.org/wiki/Logit-normal_distribution) to model their population distribution, which keeps the density between 0 and 1.  This is similar to what we did in order to bound the Gaussian process between 0 and 1.  On the other hand, the observation parameters ($\theta_i$) are constrained to be greater than zero (with no upper bound), so we'll use a log-normal distribution to model their population distribution (as we did with the population distributions for the multilevel Gaussian process).  
+
+Like with the multilevel Gaussian process, we'll put a prior on the medians of the population distributions which are identical to the priors we used on the raw parameters in the single-subject versions of the models.  Why the medians instead of the means?  Just for simplicity and consistency, really.  Because of the skew introduced by the log- and logit-transforms, the means of the log- and logit-normal distributions are not equal to their $\mu$ parameters.  The mean of a log-normal distribution is relatively easy to compute ($exp(\mu+\frac{\sigma^2}{2})), but the mean of a logit-normal distribution has no analytical solution, and would have to be estimated numerically.  Which would be a pain to do manually in Stan, would be *hideously* inelegant, and as of version 2.17.0, Stan doesn't have a built-in function for doing this.  So, I decided to just put the prior on the median (instead of the mean) for all population-level distributions.
+
+Here's a diagram of the multilevel hidden Markov model, and below we'll walk through it step by step.
 
 ![Multilevel Hidden Markov Model](img/multilevel_hidden_markov_model.svg)
 
-The transition probability parameters ($\phi_{i,i}$) for each subject $s$ are drawn from population beta distributions with parameters $\alpha=\phi_{\alpha,i}$ and $\beta=\phi_{\beta,i}$.  
+The transition probability parameters ($\phi_{i,i}$) for each subject $s$ are drawn from population logit-normal distributions with medians $\phi_{i,m}$ and standard deviation parameters $\phi_{i,\sigma}$.
 
 $$
-\forall s, ~ \phi_{i,i,s} \sim \text{Beta}(\phi_{\alpha,i}, \phi_{\beta,i})
+\forall s, ~ \phi_{i,i,s} \sim \text{LogitNormal}(\text{logit}^{-1}(\phi_{i,m}), ~ \phi_{i,\sigma})
 $$
 
-Where $\phi_{i,i,s}$ is the $\phi_{i,i}$ parameter for subject $s$.
+Where $\phi_{i,i,s}$ is the $\phi_{i,i}$ parameter for subject $s$ and state $i$, $\phi_{i,m}$ is the median of the population distribution for the recurrent transition probability parameters of state $i$, and $\phi_{i,\sigma}$ is the standard deviation parameter for that population distribution.
 
-The means of these population distributions are drawn from a beta distribution with $\alpha=1.2$ and $\beta=1.2$ (which was the prior on the $\phi_{i,i}$ parameter in the single-subject models).
-
-$$
-\text{E}[\text{Beta}(\phi_{\alpha,i}, \phi_{\beta,i})] = \frac{\phi_{\alpha,i}}{\phi_{\alpha,i}+\phi_{\beta,i}} \sim \text{Beta}(1.2, 1.2)
-$$
-
-The observation parameters ($\theta_i$) for each subject $s$ are drawn from population gamma distributions with parameters $\alpha=\theta_{\alpha,i}$ and $\beta=\theta_{\beta,i}$.  
+The prior on the medians of these population distributions are beta distributions with $\alpha=1.2$ and $\beta=1.2$ (which was the prior on the $\phi_{i,i}$ parameters in the single-subject models).
 
 $$
-\forall s, ~ \theta_{i,s} \sim \text{Gamma}(\theta_{\alpha,i}, \theta_{\beta,i})
+\forall i \in \{1,2\}, ~ \phi_{i,m} \sim \text{Beta}(1.2, 1.2)
 $$
 
-Where $\theta_{i,s}$ is the $\theta_i$ parameter for subject $s$.
-
-The means of these population distributions are drawn from a gamma distribution with $\alpha=2$ and $\beta=2$ (which was the prior on the $\theta_i$ parameter in the single-subject models).
+And the prior on the standard deviation parameters are half-normal distributions with standard deviations of 1.
 
 $$
-\text{E}[\text{Gamma}(\theta_{\alpha,i}, \theta_{\beta,i})] = \frac{\theta_{\alpha,i}}{\theta_{\beta,i}} \sim \text{Gamma}(2, 2)
+\forall i \in \{1,2\}, ~ \phi_{i,\sigma} \sim \text{HalfNormal}(0, 1)
+$$
+
+The observation parameters ($\theta_i$) for each subject $s$ are drawn from population log-normal distributions with medians $\theta_{i,m}$ and standard deviation parameters $\theta_{i,\sigma}$.  
+
+$$
+\forall s, ~ \theta_{i,s} \sim \text{LogNormal}(\log(\theta_{i,m}), ~ \theta_{i,\sigma})
+$$
+
+Where $\theta_{i,s}$ is the $\theta_i$ parameter for subject $s$ and state $i$, $\theta_{i,m}$ is the median of the population distribution for the observation distribution parameter for state $i$, and $\theta_{i,\sigma}$ is the standard deviation parameter for that population distribution.
+
+The prior on the medians of these population distributions are gamma distributions with $\alpha=2$ and $\beta=2$ (which was the prior on the $\theta_i$ parameters in the single-subject models).
+
+$$
+\forall i \in \{1, 2\}, ~ \theta_{i,m} \sim \text{Gamma}(2,2)
+$$
+
+And the prior on the standard deviation parameters are half-normal distributions with standard deviations of 2.
+
+$$
+\forall i \in \{1, 2\}, ~ \theta_{i,\sigma} \sim \text{HalfNormal}(0,2)
 $$
 
 
