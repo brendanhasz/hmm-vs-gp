@@ -1198,7 +1198,7 @@ In theory, the models above are good as is.  However, in practice, the models ar
 
 ![Hierarchical funnel](img/hierarchical_funnel.svg)
 
-Stan and other MCMC-based samplers use a sampling method which takes discrete steps (check out this [great interactive animation by Chi Feng](https://chi-feng.github.io/mcmc-demo/app.html#EfficientNUTS,banana) showing how different MCMC samplers sample from the posterior).  So, at the "neck" of the "funnel," the posterior is extremely thin, and the sampler can quickly step out of a region of high posterior density.  When it does so, the large gradient outside the funnel can cause the sampling transitions to "diverge" (shoot out towards infinity).  Most of the transitions in the neck of the funnel will end in this kind of divergence when the funnel is sharp enough, and so the resulting MCMC samples won't accurately reflect the true posterior because they didn't sample in the neck of the funnel!  This will cause our parameter estimates to be incorrect, as they will be biased away from the region of parameter-space corresponding to the neck of the funnel.
+Stan and other MCMC-based samplers use a sampling method which takes discrete steps (check out this [great interactive animation by Chi Feng](https://chi-feng.github.io/mcmc-demo/app.html#EfficientNUTS,banana) showing how different MCMC samplers sample from the posterior).  So, at the "neck" of the "funnel," the posterior is extremely thin, and the sampler can quickly step out of a region of high posterior density.  When it does so, the large gradient outside the funnel can cause the sampling transitions to "diverge" (shoot out towards infinity).  Most of the transitions in the neck of the funnel will end in this kind of divergence when the funnel is sharp enough, and so the resulting MCMC samples won't accurately reflect the true posterior because they didn't sample in the neck of the funnel!  This will cause our parameter estimates to be incorrect, as they will be biased away from the region of parameter-space corresponding to the neck of the funnel.  If we try to fit the models as is, nearly *half* of the transitions end up diverging!
 
 To correct for this problem, we can use a non-centered parameterization of our models.  Instead of defining an individual $i$'s parameter (say, $\theta_i$) as being drawn from a population distribution, we will instead draw a per-subject scaling factor $\tilde{\theta}_i$ from a normal distribution (which is independent from the population distribution variance).
 
@@ -1492,6 +1492,8 @@ abline(v=median(theta_true[,1]), col=c_dark, lwd=3)
 interval_density(posterior$theta_m[,2], xlab="Population median theta[2]")
 abline(v=median(theta_true[,2]), col=c_dark, lwd=3)
 ```
+
+TODO: change data-generating code to use lognormal and logit normal dists and generate from median
 
 TODO: ensure you recover correct INDIVIDUAL params for models fit to themselves
 
