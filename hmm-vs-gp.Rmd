@@ -1194,9 +1194,27 @@ $$
 
 ### Non-centered parameterizations
 
-TODO: talk about the non-centered parameterizations, and why. Include link to: Check out this [case study](http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html)
+In theory, the models above are good as is.  However, in practice, the models are difficult to sample from because of the geometry of the posterior distribution.  With a hierarchical model, individuals' parameters are drawn from a population distribution.  When the variance of the population distribution is large, the individuals' parameters are able to approach their non-pooled values (the value which that individual's parameter would have if we fit the model to only data from that individual).  However, the variance of the population distribution can shrink (up to a point) while maintaining a similar posterior probability, because while the likelihood of any one individual's data decreases, the likelihood due to individuals' parameters being drawn from the population distribution increases (because the distribution is being compressed).  This can lead to a "funnel"-like geometry in the posterior.
 
-TODO: MATH FOR NON-C GP
+![Hierarchical funnel](img/hierarchical_funnel.svg)
+
+Stan and other MCMC-based samplers use a sampling method which takes discrete steps (check out this [great interactive animation by Chi Feng](https://chi-feng.github.io/mcmc-demo/app.html#EfficientNUTS,banana) showing how different MCMC samplers sample from the posterior).  So, at the "neck" of the "funnel," the posterior is extremely thin, and the sampler can quickly step out of a region of high posterior density.  When it does so, the large gradient outside the funnel can cause the sampling transitions to "diverge" (shoot out towards infinity).  Most of the transitions in the neck of the funnel will end in this kind of divergence when the funnel is sharp enough, and so the resulting MCMC samples won't accurately reflect the true posterior because they didn't sample in the neck of the funnel!  This will cause our parameter estimates to be incorrect, as they will be biased away from the region of parameter-space corresponding to the neck of the funnel.
+
+To correct for this problem, we can use a non-centered parameterization of our models.  Instead of defining an individual $i$'s parameter (say, $\theta_i$) as being drawn from a population distribution, we will instead draw a per-subject scaling factor $\tilde{\theta}_i$ from a normal distribution (which is independent from the population distribution variance).
+
+$$
+\tilde{\theta}_i \sim \text{Normal}(0, 1)
+$$
+
+Then we can set each individual's parameter by multiplying the population distribution standard deviation ($\theta_\sigma$) by the scaling factor, and adding the population distribution's location parameter ($\theta_m$).
+
+$$
+\theta_i = \theta_m + \tilde{\theta}_i ~ \theta_\sigma
+$$
+
+This is mathematically equivalent to our previous model, but transforms the posterior distribution's geometry into a much simpler form.  Now, parameter-space only includes the value for $\tilde{\theta}$ and not for $\theta$ itself, which is now a transformed parameter.  This means the posterior is no longer funnel-shaped, and divergent transitions become much less of a problem.  For more about this problem and how to fix it, check out this great [case study by Michael Betancourt](http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html).  Or [read the paper about it](https://arxiv.org/abs/1312.0906).
+
+Here's a diagram of the non-centered parameterization of the Gaussian process model.  Instead of drawing individuals' parameters from a population distribution, we now construct them from per-subject scaling factors which are drawn from a standard normal distribution.
 
 ![Multilevel Gaussian Process Non-centered Parameterization](img/multilevel_gaussian_process_noncentered.svg)
 
@@ -1206,9 +1224,9 @@ Here is the Stan routine for the multilevel Gaussian process model, with a non-c
 writeLines(readLines("lgp_multilevel.stan"))
 ```
 
-I tried implementing several optimizations, including pre-computing logit(y) (in the transformed data block), writing a custom user-defined Stan function to compute the covariance matrix which assumed linearly-spaced x values, etc.  However, none of the optimizations actually ended up making the sampling run any faster!  Stan's pretty fast as is.  Well. "Fast" might be an overstatement.  *Optimized*.
+I tried implementing several optimizations, including pre-computing logit(y) (in the transformed data block), writing a custom user-defined Stan function to compute the covariance matrix which assumed linearly-spaced x values, etc.  However, none of the optimizations actually ended up making the sampling run any faster!  Stan's pretty fast as is.  Well.  Maybe not "fast".  *Optimized*.
 
-TODO: MATH FOR NON-C HMM
+We'll do the same thing for the hidden Markov model.  Here's a diagram of the non-centered parameterization of the hidden Markov model.
 
 ![Multilevel Hidden Markov Model Non-centered Parameterization](img/multilevel_hidden_markov_model_noncentered.svg)
 
