@@ -1,9 +1,9 @@
 ---
 title: "Bayesian Modeling of Gaussian Processes and Hidden Markov Models with Stan"
 output:
-   html_document:
-       toc: yes
-       self_contained: no
+    html_document:
+        toc: yes
+        self_contained: no
 ---
 
 ## Background

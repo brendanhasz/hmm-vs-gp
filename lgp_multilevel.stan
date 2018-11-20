@@ -69,9 +69,9 @@ model {
   target += normal_lpdf(sigma_tilde | 0, 1); //log(sigma) ~ normal(exp(sigma_m), sigma_s)
   
   // Jacobian adjustments for GLM parts of model
-  //target += -sum(log(rho));
-  //target += -sum(log(alpha));
-  //target += -sum(log(sigma));
+  target += -sum(log(rho));
+  target += -sum(log(alpha));
+  target += -sum(log(sigma));
   
   // Accumulate evidence over trials
   for (i in 1:Nt)
