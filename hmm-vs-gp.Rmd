@@ -1507,17 +1507,20 @@ We also want to ensure that the fit was able to recover the correct values for e
 # Plot true vs posterior for GP fit to GP
 posterior = extract(fit_gp_to_gp)
 par(mfrow=c(Ns, 3), mar=c(1,1,1,1))
+xlim_rho = c(0, 1.2)
+xlim_alpha = c(1, 4)
+xlim_sigma = c(0.2, 0.6)
 
 for (sub in 1:Ns){
-  interval_density(posterior$rho[,sub], 
+  interval_density(posterior$rho[,sub], xlim=xlim_rho,
                    xlab=sprintf("rho_%d", sub))
   abline(v=rho_true[sub], col=c_dark, lwd=3)
   
-  interval_density(posterior$alpha[,sub], 
+  interval_density(posterior$alpha[,sub],  xlim=xlim_alpha,
                    xlab=sprintf("alpha_%d", sub))
   abline(v=alpha_true[sub], col=c_dark, lwd=3)
   
-  interval_density(posterior$sigma[,sub], 
+  interval_density(posterior$sigma[,sub],  xlim=xlim_sigma,
                    xlab=sprintf("sigma_%d", sub))
   abline(v=sigma_true[sub], col=c_dark, lwd=3)
 }
@@ -1529,21 +1532,25 @@ As was the hidden Markov model.
 # Plot true vs posterior
 posterior = extract(fit_hmm_to_hmm)
 par(mfrow=c(Ns, 4), mar=c(1,1,1,1))
+xlim_phi1 = c(0.85, 1.0)
+xlim_phi2 = c(0.65, 1.0)
+xlim_theta1 = c(2, 6)
+xlim_theta2 = c(2, 6)
 
 for (sub in 1:Ns){
-  interval_density(posterior$phi[,sub,1,1], 
+  interval_density(posterior$phi[,sub,1,1], xlim=xlim_phi1,
                    xlab=sprintf("phi_1,1,%d", sub))
   abline(v=phi_true[sub,1], col=c_dark, lwd=3)
   
-  interval_density(posterior$phi[,sub,2,2], 
+  interval_density(posterior$phi[,sub,2,2], xlim=xlim_phi2,
                    xlab=sprintf("phi_2,2,%d", sub))
   abline(v=phi_true[sub,2], col=c_dark, lwd=3)
   
-  interval_density(posterior$theta[,sub,1], 
+  interval_density(posterior$theta[,sub,1], xlim=xlim_theta1,
                    xlab=sprintf("theta_1,%d", sub))
   abline(v=theta_true[sub,1], col=c_dark, lwd=3)
   
-  interval_density(posterior$theta[,sub,1], 
+  interval_density(posterior$theta[,sub,2], xlim=xlim_theta2,
                    xlab=sprintf("theta_2,%d", sub))
   abline(v=theta_true[sub,2], col=c_dark, lwd=3)
 }
