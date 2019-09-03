@@ -1,0 +1,57 @@
+---
+title: "Gaussian Process Classifier"
+output:
+    html_document:
+        toc: yes
+        self_contained: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup 
+
+Let's set up our computing environment:
+
+```{r}
+setwd("~/Code/hmm-vs-gp")
+
+# Packages
+library(rstan)
+library(ggplot2)
+library(bayesplot)
+library(invgamma)
+library(bridgesampling)
+library(RColorBrewer)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+seed = 1234567
+
+# Colors
+c_light <- c("#DCBCBC")
+c_mid <- c("#B97C7C")
+c_dark <- c("#8F2727")
+c_blue_light <- c("#b2c4df")
+c_blue_mid <- c("#6689bf")
+c_blue_dark <- c("#3d5272")
+color_scheme_set("red")
+```
+
+## Generate data
+
+```{r}
+N <- 16
+K <- 2
+y <- c(0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0)
+x <- 1:N
+```
+
+## Fit
+
+```{r}
+# Fit
+stan_rdump(c("N", "x", "y"), file="simulated_gp.data.R")
+gp_data = read_rdump("simulated_gp.data.R")
+fit_gp = stan(file='latent_gp_classifier_1d.stan', data=gp_data, seed=seed)
+```
